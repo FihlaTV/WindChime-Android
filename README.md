@@ -1,6 +1,8 @@
-# [AirShare-Android](https://github.com/OnlyInAmerica/AirShare-Android)
+# [WindChime-Android](https://github.com/guardianproject/WindChime-Android)
 
-A library designed to ease P2P communication between Android and iOS devices. Use AirShare to build software that doesn't require the Internet to discover and interact with peers, or to create unique networks based on the geographical connections of their users.
+(Updated, and rebranded version of "AirShare" project from https://github.com/onlyinamerica/airshare-android)
+
+A library designed to ease P2P communication between Android and iOS devices. Use WindChime to build software that doesn't require the Internet to discover and interact with peers, or to create unique networks based on the geographical connections of their users.
 
 Also see the [iOS library](https://github.com/chrisballinger/AirShare).
 
@@ -23,14 +25,14 @@ P2P networking should be as simple as:
 
 ## Example Apps
 
-+ The [example](https://github.com/OnlyInAmerica/AirShare-Android/tree/master/example) module of this repository illustrates simple synchronous sharing of structured data.
-+ [BLEMeshChat](https://github.com/OnlyInAmerica/BLEMeshChat) is a more advanced example featuring background operation and store-and-forward messaging.
++ The [example](https://github.com/guardianproject/WindChime-Android/tree/master/example) module of this repository illustrates simple synchronous sharing of structured data.
++ [BLEMeshChat](https://github.com/guardianproject/BLEMeshChat) is a more advanced example featuring background operation and store-and-forward messaging.
 
 ## Usage
 
 ### Synchronous AirDrop-Style Sharing
 
-AirShare's `PeerFragment` provides a simple sharing experience between mobile app instances in the foreground, with the sending user manually selecting the recipient. PeerFragment provides a UI to facilitate recipient selection and reports events via `PeerFragmentListener`, which your hosting Activity must implement.
+WindChime's `PeerFragment` provides a simple sharing experience between mobile app instances in the foreground, with the sending user manually selecting the recipient. PeerFragment provides a UI to facilitate recipient selection and reports events via `PeerFragmentListener`, which your hosting Activity must implement.
 
 
 ```java
@@ -100,7 +102,7 @@ public class SyncShareActivity extends Activity
 
 ### Asynchronous Sharing
 
-AirShare's `AirShareFragment` is a non-UI fragment that facilitates binding to the `AirShareService` which gives you full control of all sharing operations.
+WindChime's `AirShareFragment` is a non-UI fragment that facilitates binding to the `AirShareService` which gives you full control of all sharing operations.
 
 ```java
 public class AdvancedUseActivity extends AppCompatActivity
