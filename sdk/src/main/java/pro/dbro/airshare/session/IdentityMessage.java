@@ -1,6 +1,5 @@
 package pro.dbro.airshare.session;
 
-import android.content.Context;
 import android.util.Base64;
 
 import com.google.common.base.Objects;
@@ -13,6 +12,7 @@ import java.util.Map;
  * Representation of network identity. Closely related to {@link pro.dbro.airshare.session.Peer}
  * Created by davidbrodsky on 2/22/15.
  */
+@SuppressWarnings("WeakerAccess")
 public class IdentityMessage extends SessionMessage {
 
     public static final String HEADER_TYPE = "identity";
@@ -22,7 +22,7 @@ public class IdentityMessage extends SessionMessage {
     public static final String HEADER_PUBKEY      = "pubkey";
     public static final String HEADER_ALIAS       = "alias";
 
-    private Peer peer;
+    private Peer mPeer;
 
     /**
      * Convenience creator for deserialization
@@ -42,38 +42,41 @@ public class IdentityMessage extends SessionMessage {
 
     public IdentityMessage(String id, Peer peer) {
         super(id);
-        this.peer = peer;
+
+        mPeer = peer;
+
         init();
         serializeAndCacheHeaders();
     }
 
     /**
      * Constructor for own identity
-     * @param context Context to determine transport capabilities
      * @param peer    peer to provide keypair, alias
      */
-    public IdentityMessage(Context context, Peer peer) {
+    public IdentityMessage(Peer peer) {
         super();
-        this.peer = peer;
+
+        mPeer = peer;
+
         init();
         serializeAndCacheHeaders();
     }
 
     private void init() {
-        type = HEADER_TYPE;
+        mType = HEADER_TYPE;
     }
 
     public Peer getPeer() {
-        return peer;
+        return mPeer;
     }
 
     @Override
     protected HashMap<String, Object> populateHeaders() {
         HashMap<String, Object> headerMap = super.populateHeaders();
 
-        headerMap.put(HEADER_ALIAS, peer.getAlias());
-        headerMap.put(HEADER_PUBKEY, Base64.encodeToString(peer.getPublicKey(), Base64.DEFAULT));
-        headerMap.put(HEADER_TRANSPORTS, peer.getTransports());
+        headerMap.put(HEADER_ALIAS, mPeer.getAlias());
+        headerMap.put(HEADER_PUBKEY, Base64.encodeToString(mPeer.getPublicKey(), Base64.DEFAULT));
+        headerMap.put(HEADER_TRANSPORTS, mPeer.getTransports());
 
         return headerMap;
     }
@@ -86,11 +89,11 @@ public class IdentityMessage extends SessionMessage {
     @Override
     public int hashCode() {
         // If we only target API 19+, we can move to java.util.Objects.hash
-        return Objects.hashCode(headers.get(HEADER_TYPE),
-                                headers.get(HEADER_BODY_LENGTH),
-                                headers.get(HEADER_ID),
-                                headers.get(HEADER_ALIAS),
-                                headers.get(HEADER_PUBKEY));
+        return Objects.hashCode(mHeaders.get(HEADER_TYPE),
+                                mHeaders.get(HEADER_BODY_LENGTH),
+                                mHeaders.get(HEADER_ID),
+                                mHeaders.get(HEADER_ALIAS),
+                                mHeaders.get(HEADER_PUBKEY));
     }
 
     @Override
@@ -113,5 +116,4 @@ public class IdentityMessage extends SessionMessage {
 
         return false;
     }
-
 }

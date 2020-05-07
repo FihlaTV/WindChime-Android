@@ -9,9 +9,8 @@ import timber.log.Timber;
  */
 public class AirShareSampleApp extends Application {
 
-    public static final String AIR_SHARE_SERVICE_NAME = "AirShareExample";
-
-    @Override public void onCreate() {
+    @Override
+    public void onCreate() {
         super.onCreate();
 
         if (BuildConfig.DEBUG) {

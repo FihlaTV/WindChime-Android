@@ -1,7 +1,7 @@
 package pro.dbro.airshare.session;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.json.JSONObject;
 import com.google.common.base.Objects;
@@ -23,13 +23,14 @@ import timber.log.Timber;
  *
  * Constructors must call {@link #serializeAndCacheHeaders()}.
  *
- * Constructors must set {@link #status} to {@link Status#HEADER_ONLY} if appropriate
+ * Constructors must set {@link #mStatus} to {@link Status#HEADER_ONLY} if appropriate
  *
  * Created by davidbrodsky on 2/22/15.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public abstract class SessionMessage {
 
-    public static enum Status { HEADER_ONLY, COMPLETE }
+    public enum Status { HEADER_ONLY, COMPLETE }
 
     /** SessionMessage version. Must be representable by {@link #HEADER_VERSION_BYTES} bytes */
     public static final int CURRENT_HEADER_VERSION = 1;
@@ -45,13 +46,13 @@ public abstract class SessionMessage {
     public static final String HEADER_BODY_LENGTH  = "body-length";
     public static final String HEADER_ID           = "id";
 
-    protected int                              version;
-    protected @NonNull String                  type;
-    protected int                              bodyLengthBytes;
-    protected @NonNull String                  id;
-    protected @NonNull Status                  status;
-    protected @NonNull Map<String, Object>     headers;
-    private   @NonNull byte[]                  serializedHeaders;
+    protected int mVersion;
+    protected @NonNull String mType;
+    protected int mBodyLengthBytes;
+    protected @NonNull String mId;
+    protected @NonNull Status mStatus;
+    protected Map<String, Object> mHeaders;
+    private   byte[] mSerializedHeaders;
 
     /**
      * Construct a SessionMessage with a given id.
@@ -59,11 +60,11 @@ public abstract class SessionMessage {
      * incoming SessionMessages.
      */
     public SessionMessage(@NonNull String id) {
-        this.id         = id;
-        type            = getClass().getSimpleName();
-        bodyLengthBytes = 0;
-        version         = CURRENT_HEADER_VERSION;
-        status          = Status.COMPLETE;
+        mId = id;
+        mType = getClass().getSimpleName();
+        mBodyLengthBytes = 0;
+        mVersion = CURRENT_HEADER_VERSION;
+        mStatus = Status.COMPLETE;
 
         // Child classes must call serializeAndCacheHeaders()
         // in their constructors
@@ -88,33 +89,33 @@ public abstract class SessionMessage {
      */
     protected HashMap<String, Object> populateHeaders() {
         HashMap<String, Object> headerMap = new HashMap<>();
-        headerMap.put(HEADER_TYPE,        type);
-        headerMap.put(HEADER_BODY_LENGTH, bodyLengthBytes);
-        headerMap.put(HEADER_ID,          id);
+        headerMap.put(HEADER_TYPE, mType);
+        headerMap.put(HEADER_BODY_LENGTH, mBodyLengthBytes);
+        headerMap.put(HEADER_ID, mId);
 
         return headerMap;
     }
 
     public @NonNull String getType() {
-        return type;
+        return mType;
     }
 
     /**
      * @return the length of the serialized headers
      */
     public int getHeaderLengthBytes() {
-        return serializedHeaders.length;
+        return mSerializedHeaders.length;
     }
 
     public @NonNull Map<String, Object> getHeaders() {
-        return headers;
+        return mHeaders;
     }
 
     /**
      * @return the length of the blob body in bytes
      */
     public int getBodyLengthBytes() {
-        return bodyLengthBytes;
+        return mBodyLengthBytes;
     }
 
     public abstract @Nullable byte[] getBodyAtOffset(int offset, int length);
@@ -140,7 +141,7 @@ public abstract class SessionMessage {
         if (offset < 0)
             throw new IllegalArgumentException("Serialization offset may not be negative");
 
-        if (serializedHeaders == null)
+        if (mSerializedHeaders == null)
             throw new IllegalStateException("Must call serializeAndCacheHeaders() before serialization");
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -161,7 +162,7 @@ public abstract class SessionMessage {
 
                 ByteBuffer lengthBuffer = ByteBuffer.allocate(Integer.SIZE / 8)
                                                     .order(ByteOrder.LITTLE_ENDIAN)
-                                                    .putInt(serializedHeaders.length);
+                                                    .putInt(mSerializedHeaders.length);
 
                 byte[] truncatedLength = new byte[HEADER_LENGTH_BYTES];
                 lengthBuffer.rewind();
@@ -174,12 +175,12 @@ public abstract class SessionMessage {
 
             // Write SessionMessage HashMap header if offset dictates
             if (offset + bytesWritten >= HEADER_LENGTH_BYTES + HEADER_VERSION_BYTES &&
-                offset + bytesWritten < serializedHeaders.length) {
+                offset + bytesWritten < mSerializedHeaders.length) {
 
                 int headerBytesToCopy = Math.min(length - bytesWritten,
-                                                 serializedHeaders.length - (bytesWritten + offset - (HEADER_LENGTH_BYTES + HEADER_VERSION_BYTES)));
+                                                 mSerializedHeaders.length - (bytesWritten + offset - (HEADER_LENGTH_BYTES + HEADER_VERSION_BYTES)));
 
-                outputStream.write(serializedHeaders,
+                outputStream.write(mSerializedHeaders,
                                    offset + bytesWritten - (HEADER_LENGTH_BYTES + HEADER_VERSION_BYTES),
                                    headerBytesToCopy);
 
@@ -187,7 +188,7 @@ public abstract class SessionMessage {
             }
 
             // Write raw body if offset dictates
-            if (bytesWritten < length && status == Status.COMPLETE) {
+            if (bytesWritten < length && mStatus == Status.COMPLETE) {
                 // If no non-body data was written and there is no body, return null
                 if (getBodyLengthBytes() == 0 && bytesWritten == 0)
                     return null;
@@ -195,7 +196,7 @@ public abstract class SessionMessage {
                 int bodyOffset = Math.max(0,
                                           offset - (HEADER_LENGTH_BYTES +
                                                     HEADER_VERSION_BYTES +
-                                                    serializedHeaders.length)
+                                                    mSerializedHeaders.length)
                 );
 
                 byte[] body = getBodyAtOffset(bodyOffset, length - bytesWritten);
@@ -231,19 +232,19 @@ public abstract class SessionMessage {
 
         return HEADER_VERSION_BYTES +
                HEADER_LENGTH_BYTES +
-               serializedHeaders.length +
+               mSerializedHeaders.length +
                getBodyLengthBytes();
     }
 
     /**
-     * Cache the serialized representation of {@link #headers}.
+     * Cache the serialized representation of {@link #mHeaders}.
      * Must be called before {@link #serialize()} or {@link #serialize(int, int)}
      */
     protected void serializeAndCacheHeaders() {
-        if (serializedHeaders == null) {
-            if (headers == null) headers = populateHeaders();
-            JSONObject jsonHeaders = new JSONObject(headers);
-            serializedHeaders = jsonHeaders.toString().getBytes();
+        if (mSerializedHeaders == null) {
+            if (mHeaders == null) mHeaders = populateHeaders();
+            JSONObject jsonHeaders = new JSONObject(mHeaders);
+            mSerializedHeaders = jsonHeaders.toString().getBytes();
 
         }
     }
@@ -251,9 +252,9 @@ public abstract class SessionMessage {
     @Override
     public int hashCode() {
         // If we only target API 19+, we can move to java.util.Objects.hash
-        return Objects.hashCode(headers.get(HEADER_TYPE),
-                                headers.get(HEADER_BODY_LENGTH),
-                                headers.get(HEADER_ID));
+        return Objects.hashCode(mHeaders.get(HEADER_TYPE),
+                                mHeaders.get(HEADER_BODY_LENGTH),
+                                mHeaders.get(HEADER_ID));
     }
 
     @Override

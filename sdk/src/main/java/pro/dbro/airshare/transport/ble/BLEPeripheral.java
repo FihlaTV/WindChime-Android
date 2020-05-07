@@ -18,7 +18,7 @@ import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Context;
 import android.os.Build;
 import android.os.ParcelUuid;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -38,29 +38,31 @@ import timber.log.Timber;
  *
  * Created by davidbrodsky on 10/11/14.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class BLEPeripheral {
 
-    private Set<BluetoothGattCharacteristic> characterisitics = new HashSet<>();
+    private Set<BluetoothGattCharacteristic> mCharacteristics = new HashSet<>();
     /** Map of connected device addresses to devices */
-    private BiMap<String, BluetoothDevice> connectedDevices = HashBiMap.create();
+    private BiMap<String, BluetoothDevice> mConnectedDevices = HashBiMap.create();
 
+    @SuppressWarnings("unused")
     public interface BLEPeripheralConnectionGovernor {
-        public boolean shouldConnectToCentral(BluetoothDevice potentialPeer);
+        boolean shouldConnectToCentral(BluetoothDevice potentialPeer);
     }
 
-    private Context context;
-    private UUID serviceUUID;
-    private BluetoothAdapter btAdapter;
-    private BluetoothLeAdvertiser advertiser;
-    private BluetoothGattServer gattServer;
-    private BluetoothGattServerCallback gattCallback;
-    private ConnectionGovernor connectionGovernor;
-    private BLETransportCallback transportCallback;
+    private Context mContext;
+    private UUID mServiceUuid;
+    private BluetoothAdapter mBtAdapter;
+    private BluetoothLeAdvertiser mAdvertiser;
+    private BluetoothGattServer mGattServer;
+    private BluetoothGattServerCallback mGattCallback;
+    private ConnectionGovernor mConnectionGovernor;
+    private BLETransportCallback mTransportCallback;
 
-    private boolean isAdvertising = false;
+    private boolean mIsAdvertising = false;
 
-    private byte[] lastNotified;
+    private byte[] mLastNotified;
 
     /** Advertise Callback */
     private AdvertiseCallback mAdvCallback = new AdvertiseCallback() {
@@ -84,17 +86,17 @@ public class BLEPeripheral {
     // <editor-fold desc="Public API">
 
     public BLEPeripheral(@NonNull Context context, @NonNull UUID serviceUUID) {
-        this.context = context;
-        this.serviceUUID = serviceUUID;
+        this.mContext = context;
+        this.mServiceUuid = serviceUUID;
         init();
     }
 
     public void setTransportCallback(BLETransportCallback callback) {
-        transportCallback = callback;
+        mTransportCallback = callback;
     }
 
     public void setGattCallback(BluetoothGattServerCallback callback) {
-        gattCallback = callback;
+        mGattCallback = callback;
     }
 
     /**
@@ -109,15 +111,15 @@ public class BLEPeripheral {
     }
 
     public boolean isAdvertising() {
-        return isAdvertising;
+        return mIsAdvertising;
     }
 
     public BluetoothGattServer getGattServer() {
-        return gattServer;
+        return mGattServer;
     }
 
     public void addCharacteristic(BluetoothGattCharacteristic characteristic) {
-        characterisitics.add(characteristic);
+        mCharacteristics.add(characteristic);
     }
 
     /**
@@ -131,7 +133,7 @@ public class BLEPeripheral {
                             String deviceAddress) {
 
         BluetoothGattCharacteristic targetCharacteristic = null;
-        for (BluetoothGattCharacteristic characteristic : characterisitics) {
+        for (BluetoothGattCharacteristic characteristic : mCharacteristics) {
             if (characteristic.getUuid().equals(characteristicUuid))
                 targetCharacteristic = characteristic;
         }
@@ -148,13 +150,13 @@ public class BLEPeripheral {
             throw new IllegalArgumentException(String.format("Requested indicate on Characteristic %s without Notify Property",
                                                              targetCharacteristic.getUuid()));
 
-        BluetoothDevice recipient = connectedDevices.get(deviceAddress);
+        BluetoothDevice recipient = mConnectedDevices.get(deviceAddress);
 
-        if (recipient != null && gattServer != null) {
-            boolean success = gattServer.notifyCharacteristicChanged(recipient,
+        if (recipient != null && mGattServer != null) {
+            boolean success = mGattServer.notifyCharacteristicChanged(recipient,
                                                                      targetCharacteristic,
                                                                      true);
-            if (success) lastNotified = data;
+            if (success) mLastNotified = data;
             Timber.d("Notified %d bytes to %s with success %b", data.length, deviceAddress, success);
             return success;
         }
@@ -164,15 +166,15 @@ public class BLEPeripheral {
     }
 
     public boolean isConnectedTo(String deviceAddress) {
-        return connectedDevices.containsKey(deviceAddress);
+        return mConnectedDevices.containsKey(deviceAddress);
     }
 
     public BiMap<String, BluetoothDevice> getConnectedDeviceAddresses() {
-        return connectedDevices;
+        return mConnectedDevices;
     }
 
     public void setConnectionGovernor(ConnectionGovernor governor) {
-        connectionGovernor = governor;
+        mConnectionGovernor = governor;
     }
 
     // </editor-fold>
@@ -181,35 +183,33 @@ public class BLEPeripheral {
 
     private void init() {
         // BLE check
-        if (!BLEUtil.isBLESupported(context)) {
+        if (!BleUtil.isBleSupported(mContext)) {
             Timber.d("Bluetooth not supported.");
             return;
         }
-        BluetoothManager manager = BLEUtil.getManager(context);
+        BluetoothManager manager = BleUtil.getManager(mContext);
         if (manager != null) {
-            btAdapter = manager.getAdapter();
+            mBtAdapter = manager.getAdapter();
         }
-        if (btAdapter == null) {
-            Timber.d("Bluetooth unavailble.");
-            return;
+        if (mBtAdapter == null) {
+            Timber.d("Bluetooth unavailable.");
         }
-
     }
 
     private void startAdvertising() {
-        if ((btAdapter != null) && (!isAdvertising)) {
-            if (advertiser == null) {
-                advertiser = btAdapter.getBluetoothLeAdvertiser();
+        if ((mBtAdapter != null) && (!mIsAdvertising)) {
+            if (mAdvertiser == null) {
+                mAdvertiser = mBtAdapter.getBluetoothLeAdvertiser();
             }
-            if (advertiser != null) {
+            if (mAdvertiser != null) {
                 Timber.d("Starting GATT server");
                 startGattServer();
-                advertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
+                mAdvertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
             } else {
                 Timber.d("Unable to access Bluetooth LE Advertiser. Device not supported");
             }
         } else {
-            if (isAdvertising)
+            if (mIsAdvertising)
                 Timber.d("Start Advertising called while advertising already in progress");
             else
                 Timber.d("Start Advertising WTF error");
@@ -217,30 +217,30 @@ public class BLEPeripheral {
     }
 
     private void startGattServer() {
-        BluetoothManager manager = BLEUtil.getManager(context);
-        if (gattCallback == null)
-            gattCallback = new BluetoothGattServerCallback() {
+        BluetoothManager manager = BleUtil.getManager(mContext);
+        if (mGattCallback == null)
+            mGattCallback = new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    if (connectedDevices.containsKey(device.getAddress())) {
+                    if (mConnectedDevices.containsKey(device.getAddress())) {
                         // We're already connected (should never happen). Cancel connection
                         Timber.d("Denied connection. Already connected to " + device.getAddress());
-                        gattServer.cancelConnection(device);
+                        mGattServer.cancelConnection(device);
                         return;
                     }
 
-                    if (connectionGovernor != null && !connectionGovernor.shouldConnectToAddress(device.getAddress())) {
+                    if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToAddress(device.getAddress())) {
                         // The ConnectionGovernor denied the connection. Cancel connection
                         Timber.d("Denied connection. ConnectionGovernor denied " + device.getAddress());
-                        gattServer.cancelConnection(device);
+                        mGattServer.cancelConnection(device);
                         return;
                     } else {
                         // Allow connection to proceed. Mark device connected
                         Timber.d("Accepted connection to " + device.getAddress());
-                        connectedDevices.put(device.getAddress(), device);
-                        if (transportCallback != null)
-                            transportCallback.identifierUpdated(BLETransportCallback.DeviceType.PERIPHERAL,
+                        mConnectedDevices.put(device.getAddress(), device);
+                        if (mTransportCallback != null)
+                            mTransportCallback.identifierUpdated(BLETransportCallback.DeviceType.PERIPHERAL,
                                                                 device.getAddress(),
                                                                 Transport.ConnectionStatus.CONNECTED,
                                                                 null);
@@ -249,9 +249,9 @@ public class BLEPeripheral {
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     // We've disconnected
                     Timber.d("Disconnected from " + device.getAddress());
-                    connectedDevices.remove(device.getAddress());
-                    if (transportCallback != null)
-                        transportCallback.identifierUpdated(BLETransportCallback.DeviceType.PERIPHERAL,
+                    mConnectedDevices.remove(device.getAddress());
+                    if (mTransportCallback != null)
+                        mTransportCallback.identifierUpdated(BLETransportCallback.DeviceType.PERIPHERAL,
                                                             device.getAddress(),
                                                             Transport.ConnectionStatus.DISCONNECTED,
                                                             null);
@@ -269,17 +269,17 @@ public class BLEPeripheral {
             public void onCharacteristicWriteRequest(BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
                 Timber.d("onCharacteristicWriteRequest for request %d char %s offset %d length %d responseNeeded %b", requestId, characteristic.getUuid().toString().substring(0,3), offset, value == null ? 0 : value.length, responseNeeded);
 
-                BluetoothGattCharacteristic localCharacteristic = gattServer.getService(serviceUUID).getCharacteristic(characteristic.getUuid());
+                BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(mServiceUuid).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
 
                     // Must send response before notifying callback (which might trigger data send before remote central received ack)
                     if (responseNeeded) {
-                        boolean success = gattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+                        boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
                         Timber.d("Ack'd write with success " + success);
                     }
 
-                    if (transportCallback != null)
-                        transportCallback.dataReceivedFromIdentifier(BLETransportCallback.DeviceType.PERIPHERAL,
+                    if (mTransportCallback != null)
+                        mTransportCallback.dataReceivedFromIdentifier(BLETransportCallback.DeviceType.PERIPHERAL,
                                                                      value,
                                                                      remoteCentral.getAddress());
 
@@ -287,7 +287,7 @@ public class BLEPeripheral {
                     Timber.d("CharacteristicWriteRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
                     try {
-                        boolean success = gattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                        boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
 
                         Timber.w("SendResponse", "write request gatt failure success " + success);
                     } catch (NullPointerException e) {
@@ -308,7 +308,7 @@ public class BLEPeripheral {
             public void onDescriptorWriteRequest(BluetoothDevice device, int requestId, BluetoothGattDescriptor descriptor, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
                 Timber.d("onDescriptorWriteRequest %s", descriptor.toString());
                 if (Arrays.equals(value, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) && responseNeeded) {
-                    boolean success = gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+                    boolean success = mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                     Timber.d("Sent Indication sub response with success %b", success);
                 }
                 super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value);
@@ -330,39 +330,39 @@ public class BLEPeripheral {
                     exception = new UnknownServiceException(msg);
                 }
 
-                if (transportCallback != null)
-                    transportCallback.dataSentToIdentifier(BLETransportCallback.DeviceType.PERIPHERAL,
-                                                           lastNotified,
+                if (mTransportCallback != null)
+                    mTransportCallback.dataSentToIdentifier(BLETransportCallback.DeviceType.PERIPHERAL,
+                            mLastNotified,
                                                            device.getAddress(),
                                                            exception);
             }
         };
 
-        gattServer = manager.openGattServer(context, gattCallback);
-        if (gattServer == null) {
+        mGattServer = manager.openGattServer(mContext, mGattCallback);
+        if (mGattServer == null) {
             Timber.e("Unable to retrieve BluetoothGattServer");
             return;
         }
-        isAdvertising = true;
+        mIsAdvertising = true;
         setupGattServer();
     }
 
     private void setupGattServer() {
-        assert(gattServer != null);
+        assert(mGattServer != null);
 
-        BluetoothGattService service = new BluetoothGattService(serviceUUID,
+        BluetoothGattService service = new BluetoothGattService(mServiceUuid,
                                                                 BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-        for (BluetoothGattCharacteristic characteristic : characterisitics) {
+        for (BluetoothGattCharacteristic characteristic : mCharacteristics) {
             service.addCharacteristic(characteristic);
         }
 
-        gattServer.addService(service);
+        mGattServer.addService(service);
     }
 
     private AdvertiseData createAdvData() {
         AdvertiseData.Builder builder = new AdvertiseData.Builder();
-        builder.addServiceUuid(new ParcelUuid(serviceUUID));
+        builder.addServiceUuid(new ParcelUuid(mServiceUuid));
         builder.setIncludeTxPowerLevel(false);
 //        builder.setManufacturerData(0x1234578, manufacturerData);
         return builder.build();
@@ -377,10 +377,10 @@ public class BLEPeripheral {
     }
 
     private void stopAdvertising() {
-        if (isAdvertising) {
-            gattServer.close();
-            advertiser.stopAdvertising(mAdvCallback);
-            isAdvertising = false;
+        if (mIsAdvertising) {
+            mGattServer.close();
+            mAdvertiser.stopAdvertising(mAdvCallback);
+            mIsAdvertising = false;
         }
     }
 

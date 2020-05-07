@@ -1,6 +1,6 @@
 package pro.dbro.airshare.crypto;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import org.abstractj.kalium.NaCl;
 import org.abstractj.kalium.Sodium;
@@ -10,8 +10,8 @@ import org.abstractj.kalium.Sodium;
  *
  * Created by davidbrodsky on 10/13/14.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class SodiumShaker {
-    private static final String TAG = "Identity";
 
     public static final int crypto_sign_PUBLICKEYBYTES = 32;
     private static final int crypto_sign_SECRETKEYBYTES = 64;
@@ -19,6 +19,7 @@ public class SodiumShaker {
 
     static {
         // Load native libraries
+        //noinspection ResultOfMethodCallIgnored
         NaCl.sodium();
         // Initialize libsodium
         if (Sodium.sodium_init() == -1) {
@@ -54,10 +55,7 @@ public class SodiumShaker {
     public static boolean verifySignature(@NonNull byte[] public_key, @NonNull byte[] signature, @NonNull byte[] message) {
         // Verify signature
 
-        if (Sodium.crypto_sign_ed25519_verify_detached(signature, message, message.length, public_key) != 0) {
-            /* Incorrect signature! */
-            return false;
-        }
-        return true;
+        /* Incorrect signature! */
+        return Sodium.crypto_sign_ed25519_verify_detached(signature, message, message.length, public_key) == 0;
     }
 }

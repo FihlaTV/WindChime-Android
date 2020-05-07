@@ -1,15 +1,15 @@
 package pro.dbro.airshare.app.ui;
 
-import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 
@@ -45,6 +45,7 @@ import pro.dbro.airshare.transport.Transport;
  * An Activity that hosts PeerFragment must implement
  * {@link pro.dbro.airshare.app.ui.PeerFragment.PeerFragmentListener}
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class PeerFragment extends AirShareFragment implements AirShareService.Callback,
                                                               AirShareFragment.Callback {
 
@@ -92,15 +93,14 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
 
     }
 
-    private ViewGroup emptyContainer;
-    private RecyclerView recyclerView;
-    private PeerAdapter peerAdapter;
-    private PeerFragmentListener callback;
-    private AirShareService.ServiceBinder serviceBinder;
+    private ViewGroup mEmptyContainer;
+    private PeerAdapter mPeerAdapter;
+    private PeerFragmentListener mCallback;
+    private AirShareService.ServiceBinder mServiceBinder;
 
-    private Mode mode;
+    private Mode mMode;
 
-    private byte[] payload;
+    private byte[] mPayload;
 
     public static PeerFragment toSend(@NonNull byte[] toSend,
                                       @NonNull String username,
@@ -145,8 +145,8 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
         super.onCreate(savedInstanceState);
         setAirShareCallback(this);
         if (getArguments() != null) {
-            mode = (Mode) getArguments().getSerializable(ARG_MODE);
-            payload = (byte[]) getArguments().getSerializable(ARG_PAYLOAD);
+            mMode = (Mode) getArguments().getSerializable(ARG_MODE);
+            mPayload = (byte[]) getArguments().getSerializable(ARG_PAYLOAD);
         }
     }
 
@@ -156,13 +156,13 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
         // Inflate the layout for this fragment
         Context context = getActivity();
         View root = inflater.inflate(R.layout.fragment_peer, container, false);
-        peerAdapter = new PeerAdapter(context, new ArrayList<Peer>());
-        emptyContainer = (ViewGroup) root.findViewById(R.id.empty_container);
-        recyclerView = (RecyclerView) root.findViewById(R.id.recycler_view);
+        mPeerAdapter = new PeerAdapter(context, new ArrayList<Peer>());
+        mEmptyContainer = root.findViewById(R.id.empty_container);
+        RecyclerView recyclerView = root.findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
-        recyclerView.setAdapter(peerAdapter);
+        recyclerView.setAdapter(mPeerAdapter);
 
-        peerAdapter.setOnPeerViewClickListener(new View.OnClickListener() {
+        mPeerAdapter.setOnPeerViewClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 onPeerSelected((Peer) v.getTag());
@@ -172,12 +172,13 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
     }
 
     @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
+    public void onAttach(Context context) {
+        super.onAttach(context);
+
         try {
-            callback = (PeerFragmentListener) activity;
+            mCallback = (PeerFragmentListener) context;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
+            throw new ClassCastException(context.toString()
                     + " must implement PeerFragmentListener");
         }
     }
@@ -185,7 +186,7 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
     @Override
     public void onDetach() {
         super.onDetach();
-        callback = null;
+        mCallback = null;
     }
 
     /**
@@ -195,20 +196,20 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
      * {@link pro.dbro.airshare.app.ui.PeerFragment.PeerFragmentListener#onDataRequestedForPeer(PeerFragment, Peer)}
      */
     public void sendDataToPeer(byte[] data, Peer recipient) {
-        serviceBinder.send(data, recipient);
+        mServiceBinder.send(data, recipient);
     }
 
     /** An available peer was selected from {@link pro.dbro.airshare.app.adapter.PeerAdapter} */
     public void onPeerSelected(Peer peer) {
-        switch (mode) {
+        switch (mMode) {
             case SEND:
 
-                serviceBinder.send(payload, peer);
+                mServiceBinder.send(mPayload, peer);
                 break;
 
             case BOTH:
 
-                callback.onDataRequestedForPeer(this, peer);
+                mCallback.onDataRequestedForPeer(this, peer);
                 break;
 
             case RECEIVE:
@@ -219,36 +220,36 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
 
     @Override
     public void onDataRecevied(@NonNull AirShareService.ServiceBinder binder, byte[] data, @NonNull Peer sender, Exception exception) {
-        if (callback == null) return; // Fragment was detached but not destroyed
+        if (mCallback == null) return; // Fragment was detached but not destroyed
 
-        callback.onDataReceived(this, data, sender);
+        mCallback.onDataReceived(this, data, sender);
 
-        if (mode == Mode.RECEIVE)
-            callback.onFinished(this, null);
+        if (mMode == Mode.RECEIVE)
+            mCallback.onFinished(this, null);
     }
 
     @Override
     public void onDataSent(@NonNull AirShareService.ServiceBinder binder, byte[] data, @NonNull Peer recipient, Exception exception) {
-        if (callback == null) return; // Fragment was detached but not destroyed
-        callback.onDataSent(this, data, recipient);
+        if (mCallback == null) return; // Fragment was detached but not destroyed
+        mCallback.onDataSent(this, data, recipient);
 
-        if (mode == Mode.SEND)
-            callback.onFinished(this, null);
+        if (mMode == Mode.SEND)
+            mCallback.onFinished(this, null);
     }
 
     @Override
     public void onPeerStatusUpdated(@NonNull AirShareService.ServiceBinder binder, @NonNull Peer peer, @NonNull Transport.ConnectionStatus newStatus, boolean peerIsHost) {
         switch (newStatus) {
             case CONNECTED:
-                peerAdapter.notifyPeerAdded(peer);
+                mPeerAdapter.notifyPeerAdded(peer);
 
-                emptyContainer.setVisibility(View.GONE);
+                mEmptyContainer.setVisibility(View.GONE);
                 break;
 
             case DISCONNECTED:
-                peerAdapter.notifyPeerRemoved(peer);
-                if (peerAdapter.getItemCount() == 0) {
-                    emptyContainer.setVisibility(View.VISIBLE);
+                mPeerAdapter.notifyPeerRemoved(peer);
+                if (mPeerAdapter.getItemCount() == 0) {
+                    mEmptyContainer.setVisibility(View.VISIBLE);
                 }
                 break;
         }
@@ -261,28 +262,28 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
 
     @Override
     public void onServiceReady(@NonNull AirShareService.ServiceBinder serviceBinder) {
-        this.serviceBinder = serviceBinder;
-        this.serviceBinder.setCallback(this);
+        this.mServiceBinder = serviceBinder;
+        this.mServiceBinder.setCallback(this);
 
-        switch (mode) {
+        switch (mMode) {
             case SEND:
-                this.serviceBinder.scanForOtherUsers();
+                this.mServiceBinder.scanForOtherUsers();
                 break;
 
             case RECEIVE:
-                this.serviceBinder.advertiseLocalUser();
+                this.mServiceBinder.advertiseLocalUser();
                 break;
 
             case BOTH:
-                this.serviceBinder.scanForOtherUsers();
-                this.serviceBinder.advertiseLocalUser();
+                this.mServiceBinder.scanForOtherUsers();
+                this.mServiceBinder.advertiseLocalUser();
         }
     }
 
     @Override
     public void onFinished(Exception e) {
-        if (callback == null) return; // Fragment was detached but not destroyed
-        callback.onFinished(this, e);
+        if (mCallback == null) return; // Fragment was detached but not destroyed
+        mCallback.onFinished(this, e);
     }
 
 }

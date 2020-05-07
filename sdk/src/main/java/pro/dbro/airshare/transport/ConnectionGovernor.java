@@ -5,6 +5,6 @@ package pro.dbro.airshare.transport;
  */
 public interface ConnectionGovernor {
 
-    public boolean shouldConnectToAddress(String address);
-
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    boolean shouldConnectToAddress(String address);
 }

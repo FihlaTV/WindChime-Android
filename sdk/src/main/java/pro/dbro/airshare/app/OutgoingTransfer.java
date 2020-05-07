@@ -13,9 +13,10 @@ import pro.dbro.airshare.session.SessionMessageScheduler;
  *
  * Created by davidbrodsky on 3/13/15.
  */
+@SuppressWarnings("WeakerAccess")
 public class OutgoingTransfer extends Transfer implements IncomingMessageListener, MessageDeliveryListener {
 
-    public static enum State {
+    public enum State {
 
         /** Awaiting data transfer delivery" */
         AWAITING_DATA_ACK,
@@ -24,9 +25,8 @@ public class OutgoingTransfer extends Transfer implements IncomingMessageListene
         COMPLETE
     }
 
-    private Peer recipient;
-    private SessionMessageScheduler messageSender;
-    private State state;
+    private Peer mRecipient;
+    private State mState;
 
     // <editor-fold desc="Outgoing Constructors">
 
@@ -36,27 +36,26 @@ public class OutgoingTransfer extends Transfer implements IncomingMessageListene
 
         init(recipient, messageSender);
 
-        transferMessage = DataTransferMessage.createOutgoing(null, data);
-        messageSender.sendMessage(transferMessage, recipient);
+        mTransferMessage = DataTransferMessage.createOutgoing(null, data);
+        messageSender.sendMessage(mTransferMessage, recipient);
 
-        state = State.AWAITING_DATA_ACK;
+        mState = State.AWAITING_DATA_ACK;
     }
 
 
     // </editor-fold desc="Outgoing Constructors">
 
     private void init(Peer recipient, SessionMessageScheduler sender) {
-        this.recipient = recipient;
-        this.messageSender = sender;
+        mRecipient = recipient;
     }
 
     public String getTransferId() {
-        if (transferMessage == null) return null;
-        return (String) transferMessage.getHeaders().get(SessionMessage.HEADER_ID);
+        if (mTransferMessage == null) return null;
+        return (String) mTransferMessage.getHeaders().get(SessionMessage.HEADER_ID);
     }
 
     public Peer getRecipient() {
-        return recipient;
+        return mRecipient;
     }
 
     @Override
@@ -71,9 +70,8 @@ public class OutgoingTransfer extends Transfer implements IncomingMessageListene
     @Override
     public boolean onMessageDelivered(SessionMessage message, Peer recipient, Exception exception) {
 
-        if (state == State.AWAITING_DATA_ACK && transferMessage != null && message.equals(transferMessage)) {
-
-            state = State.COMPLETE;
+        if (mState == State.AWAITING_DATA_ACK && message.equals(mTransferMessage)) {
+            mState = State.COMPLETE;
             return false;
         }
 
@@ -84,6 +82,6 @@ public class OutgoingTransfer extends Transfer implements IncomingMessageListene
 
     @Override
     public boolean isComplete() {
-        return state == State.COMPLETE;
+        return mState == State.COMPLETE;
     }
 }

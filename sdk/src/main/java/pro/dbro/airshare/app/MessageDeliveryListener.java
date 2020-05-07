@@ -17,5 +17,5 @@ public interface MessageDeliveryListener {
      * the listener will not receive further events.
      *
      */
-    public boolean onMessageDelivered(SessionMessage message, Peer recipient, Exception exception);
+    boolean onMessageDelivered(SessionMessage message, Peer recipient, Exception exception);
 }

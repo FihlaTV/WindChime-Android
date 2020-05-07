@@ -22,22 +22,18 @@ import android.content.pm.PackageManager;
 /**
  * Util for Bluetooth Low Energy
  */
-public class BLEUtil {
-    public static final String TAG = "BLEUtil";
-
-    private BLEUtil() {
-        // Util
-    }
+@SuppressWarnings("WeakerAccess")
+public class BleUtil {
 
     /** check if BLE Supported device */
-    public static boolean isBLESupported(Context context) {
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean isBleSupported(Context context) {
         return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
     }
 
     /** get BluetoothManager */
     public static BluetoothManager getManager(Context context) {
-        BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-        return manager;
+        return (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
     }
 
     /**
@@ -46,10 +42,6 @@ public class BLEUtil {
      * via a call to {@link android.app.Activity#onActivityResult(int, int, android.content.Intent)}
     */
     public static boolean isBluetoothEnabled(Context context) {
-        boolean enabled = getManager(context).getAdapter().isEnabled();
-        return enabled;
+        return getManager(context).getAdapter().isEnabled();
     }
-
-
-
 }
