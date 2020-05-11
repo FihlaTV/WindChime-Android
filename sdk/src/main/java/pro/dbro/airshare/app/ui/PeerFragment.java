@@ -219,7 +219,7 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
     }
 
     @Override
-    public void onDataRecevied(@NonNull AirShareService.ServiceBinder binder, byte[] data, @NonNull Peer sender, Exception exception) {
+    public void onDataReceived(@NonNull AirShareService.ServiceBinder binder, byte[] data, @NonNull Peer sender, Exception exception) {
         if (mCallback == null) return; // Fragment was detached but not destroyed
 
         mCallback.onDataReceived(this, data, sender);
@@ -262,21 +262,21 @@ public class PeerFragment extends AirShareFragment implements AirShareService.Ca
 
     @Override
     public void onServiceReady(@NonNull AirShareService.ServiceBinder serviceBinder) {
-        this.mServiceBinder = serviceBinder;
-        this.mServiceBinder.setCallback(this);
+        mServiceBinder = serviceBinder;
+        mServiceBinder.setCallback(this);
 
         switch (mMode) {
             case SEND:
-                this.mServiceBinder.scanForOtherUsers();
+                mServiceBinder.scanForOtherUsers();
                 break;
 
             case RECEIVE:
-                this.mServiceBinder.advertiseLocalUser();
+                mServiceBinder.advertiseLocalUser();
                 break;
 
             case BOTH:
-                this.mServiceBinder.scanForOtherUsers();
-                this.mServiceBinder.advertiseLocalUser();
+                mServiceBinder.scanForOtherUsers();
+                mServiceBinder.advertiseLocalUser();
         }
     }
 

@@ -39,7 +39,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
 
     public interface Callback {
 
-        void onDataRecevied(@NonNull AirShareService.ServiceBinder binder,
+        void onDataReceived(@NonNull AirShareService.ServiceBinder binder,
                             @Nullable byte[] data,
                             @NonNull Peer sender,
                             @Nullable Exception exception);
@@ -103,7 +103,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
     @Override
     public void onDestroy() {
         Timber.d("Service destroyed");
-        mSessionManager.stop();
+        if (mSessionManager != null) mSessionManager.stop();
         mBackgroundLooper.quit();
     }
 
@@ -143,15 +143,15 @@ public class AirShareService extends Service implements ActivityRecevingMessages
         }
 
         public void advertiseLocalUser() {
-            mSessionManager.advertiseLocalPeer();
+            if (mSessionManager != null) mSessionManager.advertiseLocalPeer();
         }
 
         public void scanForOtherUsers() {
-            mSessionManager.scanForPeers();
+            if (mSessionManager != null) mSessionManager.scanForPeers();
         }
 
         public void stop() {
-            mSessionManager.stop();
+            if (mSessionManager != null) mSessionManager.stop();
         }
 
         public void setCallback(Callback callback) {
@@ -189,7 +189,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          * and should be downgraded as soon as possible via {@link #downgradeTransport()}
          */
         public void requestTransportUpgrade(Peer remotePeer) {
-            mSessionManager.requestTransportUpgrade(remotePeer);
+            if (mSessionManager != null) mSessionManager.requestTransportUpgrade(remotePeer);
         }
 
         /**
@@ -197,7 +197,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          * Currently this is {@link pro.dbro.airshare.transport.ble.BLETransport}
          */
         public void downgradeTransport() {
-            mSessionManager.downgradeTransport();
+            if (mSessionManager != null) mSessionManager.downgradeTransport();
         }
 
         /** Get the current preferred available transport for the given peer
@@ -208,7 +208,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          *                 or -1 if none available.
          */
         public int getTransportCodeForPeer(Peer remotePeer) {
-            return mSessionManager.getTransportCodeForPeer(remotePeer);
+            return mSessionManager != null ? mSessionManager.getTransportCodeForPeer(remotePeer) : -1;
         }
 
         /**
@@ -376,7 +376,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
                 @Override
                 public void run() {
                     if (mCallback != null)
-                        mCallback.onDataRecevied(mBinder, incomingTransfer.getBodyBytes(), sender, null);
+                        mCallback.onDataReceived(mBinder, incomingTransfer.getBodyBytes(), sender, null);
                 }
             });
         }

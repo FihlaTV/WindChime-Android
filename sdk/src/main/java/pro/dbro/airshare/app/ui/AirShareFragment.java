@@ -29,7 +29,7 @@ import timber.log.Timber;
  * Implementation classes
  * must implement {@link pro.dbro.airshare.app.ui.AirShareFragment.Callback}
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class AirShareFragment extends Fragment implements ServiceConnection {
 
     public interface Callback {
@@ -78,7 +78,7 @@ public class AirShareFragment extends Fragment implements ServiceConnection {
     }
 
     public void setAirShareCallback(Callback callback) {
-        this.mCallback = callback;
+        mCallback = callback;
     }
 
     @Override
@@ -228,7 +228,8 @@ public class AirShareFragment extends Fragment implements ServiceConnection {
             // await result in OnActivityResult
             registerBroadcastReceiver();
             showEnableBluetoothDialog();
-        } else {
+        }
+        else {
             // Bluetooth Enabled, Register primary identity
             mServiceBinder.registerLocalUserWithService(mUsername, mServicename);
 
