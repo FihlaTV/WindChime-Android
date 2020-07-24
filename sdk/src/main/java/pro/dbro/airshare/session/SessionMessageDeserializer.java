@@ -1,7 +1,7 @@
 package pro.dbro.airshare.session;
 
 import android.content.Context;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import timber.log.Timber;
@@ -40,45 +41,44 @@ import timber.log.Timber;
  *
  * Created by davidbrodsky on 2/24/15.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class SessionMessageDeserializer {
 
-    public static interface SessionMessageDeserializerCallback {
+    public interface SessionMessageDeserializerCallback {
 
-        public void onHeaderReady(SessionMessageDeserializer receiver, SessionMessage message);
+        void onHeaderReady(SessionMessageDeserializer receiver, SessionMessage message);
 
-        public void onBodyProgress(SessionMessageDeserializer receiver, SessionMessage message, float progress);
+        void onBodyProgress(SessionMessageDeserializer receiver, SessionMessage message, float progress);
 
-        public void onComplete(SessionMessageDeserializer receiver, SessionMessage message, Exception e);
-
+        void onComplete(SessionMessageDeserializer receiver, SessionMessage message, Exception e);
     }
 
     /** Bodies over this size will be stored on disk */
     private static final int BODY_SIZE_CUTOFF_BYTES = 2 * 1000 * 1000; // 2 MB
 
-    private Context                            context;
-    private ByteBuffer                         buffer;
-    private SessionMessageDeserializerCallback callback;
-    private File                               bodyFile;
-    private OutputStream                       bodyStream;
-    private HashMap<String, Object>            headers;
-    private ByteBuffer                         headerLengthBuffer;
-    private SessionMessage                     sessionMessage;
+    private Context mContext;
+    private ByteBuffer mBuffer;
+    private SessionMessageDeserializerCallback mCallback;
+    private File mBodyFile;
+    private OutputStream mBodyStream;
+    private ByteBuffer mHeaderLengthBuffer;
+    private SessionMessage mSessionMessage;
 
-    private boolean gotVersion;
-    private boolean gotHeaderLength;
-    private boolean gotHeader;
-    private boolean gotBody;
-    private boolean gotBodyBoundary;
+    private boolean mGotVersion;
+    private boolean mGotHeaderLength;
+    private boolean mGotHeader;
+    private boolean mGotBody;
+    private boolean mGotBodyBoundary;
 
-    private int headerLength;
-    private int bodyLength;
-    private int bodyBytesReceived;
-    private int bufferOffset;
+    private int mHeaderLength;
+    private int mBodyLength;
+    private int mBodyBytesReceived;
+    private int mBufferOffset;
 
     public SessionMessageDeserializer(Context context, SessionMessageDeserializerCallback callback) {
-        buffer = ByteBuffer.allocate(5 * 1000);
-        this.callback = callback;
-        this.context = context;
+        mBuffer = ByteBuffer.allocate(5 * 1000);
+        mCallback = callback;
+        mContext = context;
 
         init();
     }
@@ -86,7 +86,7 @@ public class SessionMessageDeserializer {
     /**
      * Reset the state of the receiver in preparation for a new SessionMessage.
      *
-     * @param clear whether to delete unprocessed data in {@link #buffer}. If the data stream
+     * @param clear whether to delete unprocessed data in {@link #mBuffer}. If the data stream
      *              is interrupted and not resumable we'd want to do this. If we want to
      *              process the next message in stream, we do not.
      * losing any
@@ -95,29 +95,29 @@ public class SessionMessageDeserializer {
      * e.g: the source of incoming data becomes unavailable.
      */
     public void reset(boolean clear) {
-        gotVersion      = false;
-        gotHeaderLength = false;
-        gotHeader       = false;
-        gotBody         = false;
-        gotBodyBoundary = false;
+        mGotVersion = false;
+        mGotHeaderLength = false;
+        mGotHeader = false;
+        mGotBody = false;
+        mGotBodyBoundary = false;
 
-        headerLength      = 0;
-        bodyLength        = 0;
-        bodyBytesReceived = 0;
+        mHeaderLength = 0;
+        mBodyLength = 0;
+        mBodyBytesReceived = 0;
 
         if (clear) {
-            bufferOffset  = 0;
-            buffer.clear();
+            mBufferOffset = 0;
+            mBuffer.clear();
 
-            bodyFile = null;
+            mBodyFile = null;
 
-            if (bodyStream != null) {
+            if (mBodyStream != null) {
                 try {
-                    bodyStream.close();
+                    mBodyStream.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                bodyStream = null;
+                mBodyStream = null;
             }
         }
     }
@@ -130,32 +130,32 @@ public class SessionMessageDeserializer {
      * @param data sequential chunk of a serialized {@link pro.dbro.airshare.session.SessionMessage}
      */
     public void dataReceived(byte[] data) {
-        if (data.length > buffer.capacity() - buffer.position())
+        if (data.length > mBuffer.capacity() - mBuffer.position())
             resizeBuffer(data.length);
 
         try {
 
-            /** Write incoming data to memory buffer if accumulated bytes received (since construction
+            /* Write incoming data to memory buffer if accumulated bytes received (since construction
              * or call to {@link #reset()}) indicates we are still receiving the SessionMessage prefix
              * or header. If accumulated bytes received indicates we are receiving body, write to body OutputStream
              */
-            if (gotHeaderLength && getMessageIndex() >= getPrefixAndHeaderLengthBytes()) {
+            if (mGotHeaderLength && getMessageIndex() >= getPrefixAndHeaderLengthBytes()) {
 
-                if (bodyLength > BODY_SIZE_CUTOFF_BYTES) {
+                if (mBodyLength > BODY_SIZE_CUTOFF_BYTES) {
 
-                    if (bodyStream == null) prepareBodyOutputStream();
+                    if (mBodyStream == null) prepareBodyOutputStream();
 
-                    bodyStream.write(data);
+                    mBodyStream.write(data);
                 } else
-                    buffer.put(data);
+                    mBuffer.put(data);
 
-                bodyBytesReceived += Math.min(bodyLength - bodyBytesReceived, data.length);
+                mBodyBytesReceived += Math.min(mBodyLength - mBodyBytesReceived, data.length);
 
-                if (callback != null && bodyLength > 0)
-                    callback.onBodyProgress(this, sessionMessage, bodyBytesReceived / (float) bodyLength);
+                if (mCallback != null && mBodyLength > 0)
+                    mCallback.onBodyProgress(this, mSessionMessage, mBodyBytesReceived / (float) mBodyLength);
             }
             else {
-                buffer.put(data);
+                mBuffer.put(data);
             }
 
         } catch (IOException e) {
@@ -165,162 +165,169 @@ public class SessionMessageDeserializer {
         processData(data.length);
 
 
-        if (!gotBody && gotHeader) {
-            Timber.d(String.format("Read %d / %d body bytes", bodyBytesReceived, bodyLength));
+        if (!mGotBody && mGotHeader) {
+            Timber.d(String.format(Locale.US, "Read %d / %d body bytes", mBodyBytesReceived, mBodyLength));
         }
-
     }
 
     /** @return the current index into the message currently being deserialized */
     private int getMessageIndex() {
-        return buffer.position() - bufferOffset;
+        return mBuffer.position() - mBufferOffset;
     }
 
     private void processData(int bytesJustReceived) {
         Timber.d("Received %d bytes", bytesJustReceived);
         int dataBytesProcessed = 0;
 
-        /** Deserialize SessionMessage Header version byte, if not yet done since construction
+        /* Deserialize SessionMessage Header version byte, if not yet done since construction
          * or last call to {@link #reset()}
          */
-        if (!gotVersion && getMessageIndex() >= SessionMessage.HEADER_VERSION_BYTES) {
+        if (!mGotVersion && getMessageIndex() >= SessionMessage.HEADER_VERSION_BYTES) {
             // Get version int from first byte
             // Check we can deserialize this version
-            int version = new BigInteger(new byte[]{buffer.get(bufferOffset)}).intValue();
-            Timber.d("Deserialized header version %d at idx %d", version, bufferOffset);
+            int version = new BigInteger(new byte[]{mBuffer.get(mBufferOffset)}).intValue();
+            Timber.d("Deserialized header version %d at idx %d", version, mBufferOffset);
             if (version != SessionMessage.CURRENT_HEADER_VERSION) {
                 Timber.e("Unknown SessionMessage version");
-                if (callback != null)
-                    callback.onComplete(this, null, new UnsupportedOperationException("Unknown SessionMessage version " + version));
+                if (mCallback != null)
+                    mCallback.onComplete(this, null, new UnsupportedOperationException("Unknown SessionMessage version " + version));
                 return;
             }
             dataBytesProcessed += SessionMessage.HEADER_VERSION_BYTES;
-            gotVersion = true;
+            mGotVersion = true;
         }
 
-        /** Deserialize SessionMessage Header length bytes, if not yet done since construction
+        /* Deserialize SessionMessage Header length bytes, if not yet done since construction
          * or last call to {@link #reset()}
          */
-        if (!gotHeaderLength && getMessageIndex() >= SessionMessage.HEADER_VERSION_BYTES +
+        if (!mGotHeaderLength && getMessageIndex() >= SessionMessage.HEADER_VERSION_BYTES +
                                                      SessionMessage.HEADER_LENGTH_BYTES) {
 
             // Get header length and store. Deserialize header when possible
             byte[] headerLengthBytes = new byte[SessionMessage.HEADER_LENGTH_BYTES];
-            int originalPosition = buffer.position();
-            buffer.position(bufferOffset + dataBytesProcessed);
-            buffer.get(headerLengthBytes, 0, headerLengthBytes.length);
-            buffer.position(originalPosition);
+            int originalPosition = mBuffer.position();
+            mBuffer.position(mBufferOffset + dataBytesProcessed);
+            mBuffer.get(headerLengthBytes, 0, headerLengthBytes.length);
+            mBuffer.position(originalPosition);
 
-            headerLengthBuffer.clear();
-            headerLengthBuffer.put(headerLengthBytes);
-            headerLengthBuffer.rewind();
+            mHeaderLengthBuffer.clear();
+            mHeaderLengthBuffer.put(headerLengthBytes);
+            mHeaderLengthBuffer.rewind();
 
-            headerLength = headerLengthBuffer.getInt();
-            Timber.d("Deserialized header length " + headerLength);
-            gotHeaderLength = true;
+            mHeaderLength = mHeaderLengthBuffer.getInt();
+            Timber.d("Deserialized header length " + mHeaderLength);
+            mGotHeaderLength = true;
             dataBytesProcessed += SessionMessage.HEADER_LENGTH_BYTES;
         }
 
-        /** Deserialize SessionMessage Header content, if not yet done since construction
+        /* Deserialize SessionMessage Header content, if not yet done since construction
          * or last call to {@link #reset()}
          */
-        if (!gotHeader && gotHeaderLength && getMessageIndex() >= getPrefixAndHeaderLengthBytes()) {
+        if (!mGotHeader && mGotHeaderLength && getMessageIndex() >= getPrefixAndHeaderLengthBytes()) {
 
-            byte[] headerString = new byte[headerLength];
-            int originalBufferPosition = buffer.position();
-            buffer.position(bufferOffset + SessionMessage.HEADER_VERSION_BYTES + SessionMessage.HEADER_LENGTH_BYTES);
-            buffer.get(headerString, 0, headerLength);
-            buffer.position(originalBufferPosition);
+            byte[] headerString = new byte[mHeaderLength];
+            int originalBufferPosition = mBuffer.position();
+            mBuffer.position(mBufferOffset + SessionMessage.HEADER_VERSION_BYTES + SessionMessage.HEADER_LENGTH_BYTES);
+            mBuffer.get(headerString, 0, mHeaderLength);
+            mBuffer.position(originalBufferPosition);
 
             try {
+                //noinspection CharsetObjectCanBeUsed
                 JSONObject jsonHeader = new JSONObject(new String(headerString, "UTF-8"));
-                headers = toMap(jsonHeader);
-                bodyLength = (int) headers.get(SessionMessage.HEADER_BODY_LENGTH);
-                sessionMessage = sessionMessageFromHeaders(headers);
-                Timber.d(String.format("Deserialized %s header indicating body length %d", (String) headers.get(SessionMessage.HEADER_TYPE), (int) headers.get(SessionMessage.HEADER_BODY_LENGTH)));
-                if (sessionMessage != null && callback != null)
-                    callback.onHeaderReady(this, sessionMessage);
-            } catch (JSONException | UnsupportedEncodingException e) {
+
+                HashMap<String, Object> headers = toMap(jsonHeader);
+
+                mBodyLength = (int) headers.get(SessionMessage.HEADER_BODY_LENGTH);
+                mSessionMessage = sessionMessageFromHeaders(headers);
+
+                Timber.d(String.format(Locale.US, "Deserialized %s header indicating body length %d",
+                        headers.get(SessionMessage.HEADER_TYPE), mBodyLength));
+
+                if (mSessionMessage != null && mCallback != null) {
+                    mCallback.onHeaderReady(this, mSessionMessage);
+                }
+            }
+            catch (JSONException | UnsupportedEncodingException e) {
                 // TODO : We should reset or otherwise abort this message
                 e.printStackTrace();
             }
 
-            gotHeader = true;
-            dataBytesProcessed += headerLength;
+            mGotHeader = true;
+            dataBytesProcessed += mHeaderLength;
         }
 //        else if (!gotHeader)
 //            Timber.d(String.format("Got %d / %d header bytes", buffer.position(), SessionMessage.HEADER_VERSION_BYTES + SessionMessage.HEADER_LENGTH_BYTES + headerLength));
 
-        /** If the boundary between header content and body content occurred within {@link data},
-         * update {@link #bodyBytesReceived} appropriately. Additionally, if this SessionMessage
-         * requires off-memory body storage we remove body data from {@link buffer} and insert it into
-         * the {@link bodyStream}. Must be performed before determining body completion.
+        /* If the boundary between header content and body content occurred within {@link data},
+         * update {@link #mBodyBytesReceived} appropriately. Additionally, if this SessionMessage
+         * requires off-memory body storage we remove body data from {@link mBuffer} and insert it into
+         * the {@link mBodyStream}. Must be performed before determining body completion.
          *
          * Performed at most once per SessionMessage
          */
-        if (!gotBodyBoundary &&
-                gotHeader &&
-                bodyLength > 0 &&
+        if (!mGotBodyBoundary &&
+                mGotHeader &&
+                mBodyLength > 0 &&
                 getMessageIndex() >= getPrefixAndHeaderLengthBytes()) {
 
             try {
                 int bodyBytesJustReceived = bytesJustReceived - dataBytesProcessed;
 
-                if (bodyLength > BODY_SIZE_CUTOFF_BYTES) {
+                if (mBodyLength > BODY_SIZE_CUTOFF_BYTES) {
 
-                    if (bodyStream == null) prepareBodyOutputStream();
+                    if (mBodyStream == null) prepareBodyOutputStream();
 
                     byte[] bodyBytes = new byte[bodyBytesJustReceived];
-                    buffer.position(buffer.position() - bodyBytesJustReceived);
-                    buffer.get(bodyBytes, 0, bodyBytesJustReceived);
-                    buffer.position(buffer.position() - bodyBytesJustReceived);
-                    bodyStream.write(bodyBytes, 0, bodyBytesJustReceived);
+                    mBuffer.position(mBuffer.position() - bodyBytesJustReceived);
+                    mBuffer.get(bodyBytes, 0, bodyBytesJustReceived);
+                    mBuffer.position(mBuffer.position() - bodyBytesJustReceived);
+                    mBodyStream.write(bodyBytes, 0, bodyBytesJustReceived);
                 }
 
-                bodyBytesReceived += bodyBytesJustReceived;
+                mBodyBytesReceived += bodyBytesJustReceived;
 
-                if (callback != null && bodyLength > 0)
-                    callback.onBodyProgress(this, sessionMessage, bodyBytesReceived / (float) bodyLength);
+                if (mCallback != null && mBodyLength > 0)
+                    mCallback.onBodyProgress(this, mSessionMessage, mBodyBytesReceived / (float) mBodyLength);
 
-                Timber.d(String.format("Splitting received data between header (%d bytes) and body (%d bytes)", dataBytesProcessed, bodyBytesJustReceived));
-                gotBodyBoundary = true;
+                Timber.d(String.format(Locale.US, "Splitting received data between header (%d bytes) and body (%d bytes)", dataBytesProcessed, bodyBytesJustReceived));
+                mGotBodyBoundary = true;
 
             } catch (IOException e) {
                 Timber.d(e, "IOException");
             }
         }
 
-        /** Construct and deliver complete SessionMessage if deserialized header and body are received */
-        if (gotHeader && !gotBody && bodyBytesReceived == bodyLength) {
+        /* Construct and deliver complete SessionMessage if deserialized header and body are received */
+        if (mGotHeader && !mGotBody && mBodyBytesReceived == mBodyLength) {
 
             Timber.d("Got body!");
             // Construct appropriate SessionMessage or child object
-            if (bodyLength > BODY_SIZE_CUTOFF_BYTES) {
+            if (mBodyLength > BODY_SIZE_CUTOFF_BYTES) {
 
-                if (sessionMessage instanceof DataTransferMessage) {
+                if (mSessionMessage instanceof DataTransferMessage) {
                     // TODO This shouldn't happen. We should enforce an upper limit on DataTransferMessage
                     throw new UnsupportedOperationException("Cannot have a disk-backed DataTransferMessage");
                 }
             } else {
-                byte[] body = new byte[bodyLength];
-                int originalPos = buffer.position();
-                buffer.position(bufferOffset + getPrefixAndHeaderLengthBytes());
-                buffer.get(body, 0, bodyLength);
-                buffer.position(originalPos);
+                byte[] body = new byte[mBodyLength];
+                int originalPos = mBuffer.position();
+                mBuffer.position(mBufferOffset + getPrefixAndHeaderLengthBytes());
+                mBuffer.get(body, 0, mBodyLength);
+                mBuffer.position(originalPos);
 
-                if (sessionMessage instanceof DataTransferMessage) {
-                    ((DataTransferMessage) sessionMessage).setBody(body);
+                if (mSessionMessage instanceof DataTransferMessage) {
+                    ((DataTransferMessage) mSessionMessage).setBody(body);
                 }
-                dataBytesProcessed += bodyLength;
+                dataBytesProcessed += mBodyLength;
             }
 
-            if (callback != null) callback.onComplete(this, sessionMessage, null);
+            if (mCallback != null) mCallback.onComplete(this, mSessionMessage, null);
 
-            gotBody = true;
+            mGotBody = true;
 
             // Prepare for next incoming message
-            bufferOffset += (getPrefixAndHeaderLengthBytes() + bodyLength); // The next message begins at this offset. We can't simply use dataBytesProcessed because this message may have been processed over prior calls to this method
-            Timber.d("Message complete. Buffer offset %d, dataBytes processed %d", bufferOffset, dataBytesProcessed);
+            mBufferOffset += (getPrefixAndHeaderLengthBytes() + mBodyLength); // The next message begins at this offset. We can't simply use dataBytesProcessed because this message may have been processed over prior calls to this method
+            Timber.d("Message complete. Buffer offset %d, dataBytes processed %d", mBufferOffset, dataBytesProcessed);
             reset(false);
             if (dataBytesProcessed < bytesJustReceived) {
                 Timber.d("%d / %d bytes deserialized in complete msg. Proceeding to next msg", dataBytesProcessed, bytesJustReceived);
@@ -330,50 +337,52 @@ public class SessionMessageDeserializer {
     }
 
     private void init() {
-        headerLengthBuffer = ByteBuffer.allocate(Integer.SIZE / 8).order(ByteOrder.LITTLE_ENDIAN);
+        mHeaderLengthBuffer = ByteBuffer.allocate(Integer.SIZE / 8).order(ByteOrder.LITTLE_ENDIAN);
     }
 
     private void resizeBuffer(int minLength) {
-        int curLen = buffer.capacity();
-        int curOccupied = buffer.position();
+        int curLen = mBuffer.capacity();
+        int curOccupied = mBuffer.position();
         int newLen = Math.max(minLength, (int) (curLen * 1.5));
         ByteBuffer newBuffer = ByteBuffer.allocate(newLen);
-        buffer.limit(buffer.position());
-        buffer.position(0);
-        newBuffer.put(buffer);
-        buffer = newBuffer;
-        Timber.d("Buffer resized from %d (%d used) to %d. %d bytes avail", curLen, curOccupied, newLen, buffer.capacity() - buffer.position());
+        mBuffer.limit(mBuffer.position());
+        mBuffer.position(0);
+        newBuffer.put(mBuffer);
+        mBuffer = newBuffer;
+        Timber.d("Buffer resized from %d (%d used) to %d. %d bytes avail", curLen, curOccupied, newLen, mBuffer.capacity() - mBuffer.position());
     }
 
     private void prepareBodyOutputStream() {
-        bodyFile = new File(context.getExternalFilesDir(null), UUID.randomUUID().toString().replace("-","") + ".body");
+        mBodyFile = new File(mContext.getExternalFilesDir(null), UUID.randomUUID().toString().replace("-","") + ".body");
         try {
-            bodyStream = new FileOutputStream(bodyFile);
+            mBodyStream = new FileOutputStream(mBodyFile);
         } catch (FileNotFoundException e) {
-            String msg = "Failed to open body File: " + bodyFile.getAbsolutePath();
+            String msg = "Failed to open body File: " + mBodyFile.getAbsolutePath();
             Timber.e(e, msg);
             throw new IllegalArgumentException(msg);
         }
     }
 
     private float getCurrentMessageProgress() {
-        if (bodyLength == 0) return 0;
-        return bodyBytesReceived / (float) bodyLength;
+        if (mBodyLength == 0) return 0;
+        return mBodyBytesReceived / (float) mBodyLength;
     }
 
     /**
      * @return the number of bytes which the prefix and header occupy
-     * This method only returns a valid value if {@link #gotHeaderLength} is {@code true}
+     * This method only returns a valid value if {@link #mGotHeaderLength} is {@code true}
      */
     private int getPrefixAndHeaderLengthBytes() {
-        return SessionMessage.HEADER_VERSION_BYTES + SessionMessage.HEADER_LENGTH_BYTES + headerLength;
+        return SessionMessage.HEADER_VERSION_BYTES + SessionMessage.HEADER_LENGTH_BYTES + mHeaderLength;
     }
 
     private static @Nullable SessionMessage sessionMessageFromHeaders(HashMap<String, Object> headers) {
-        if (!headers.containsKey(SessionMessage.HEADER_TYPE))
-            throw new IllegalArgumentException("headers map must have 'type' entry");
-
         final String headerType = (String) headers.get(SessionMessage.HEADER_TYPE);
+
+        if (headerType == null) {
+            throw new IllegalArgumentException("headers map must have 'type' entry");
+        }
+
         switch(headerType) {
             case IdentityMessage.HEADER_TYPE:
                 return IdentityMessage.fromHeaders(headers);

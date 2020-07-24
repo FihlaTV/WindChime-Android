@@ -6,8 +6,8 @@ package pro.dbro.airshare.app;
  *
  * Created by davidbrodsky on 11/14/14.
  */
+@SuppressWarnings({"UnnecessaryInterfaceModifier", "unused"})
 public interface ActivityRecevingMessagesIndicator {
 
     public boolean isActivityReceivingMessages();
-
 }

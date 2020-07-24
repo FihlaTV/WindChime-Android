@@ -6,6 +6,7 @@ import android.content.Context;
 /**
  * Created by davidbrodsky on 9/21/14.
  */
+@SuppressWarnings("unused")
 public class PrefsManager {
 
     /** SharedPreferences store names */
@@ -26,7 +27,7 @@ public class PrefsManager {
     public static void setUsername(Context context, String username) {
         context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE).edit()
                .putString(APP_USERNAME, username)
-               .commit();
+               .apply();
     }
 
     public static void clearState(Context context) {

@@ -1,7 +1,9 @@
 package pro.dbro.airshare.app.adapter;
 
 import android.content.Context;
-import android.support.v7.widget.RecyclerView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,13 +21,13 @@ import pro.dbro.airshare.session.Peer;
  */
 public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
 
-    private Context mContext;
-    private ArrayList<Peer> peers;
+    private ArrayList<Peer> mPeers;
 
     private View.OnClickListener peerClickListener;
 
     // Provide a reference to the type of views that you are using
     // (custom viewholder)
+    @SuppressWarnings("WeakerAccess")
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView textView;
         public ViewGroup container;
@@ -37,9 +39,8 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     }
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public PeerAdapter(Context context, ArrayList<Peer> peers) {
-        this.peers = peers;
-        mContext = context;
+    public PeerAdapter(Context context, ArrayList<Peer> mPeers) {
+        this.mPeers = mPeers;
     }
 
     public void setOnPeerViewClickListener(View.OnClickListener listener) {
@@ -47,6 +48,7 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     }
 
     // Create new views (invoked by the layout manager)
+    @NonNull
     @Override
     public PeerAdapter.ViewHolder onCreateViewHolder(ViewGroup parent,
                                                      int viewType) {
@@ -71,7 +73,7 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     public void onBindViewHolder(ViewHolder holder, int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        Peer peer = peers.get(position);
+        Peer peer = mPeers.get(position);
         holder.textView.setText(peer.getAlias() == null ?
                                 "Unnamed (key=" + Base64.encodeToString(peer.getPublicKey(),
                                                                         Base64.DEFAULT).substring(0, 5) + "...)" :
@@ -82,18 +84,18 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     // Return the size of your dataset (invoked by the layout manager)
     @Override
     public int getItemCount() {
-        return peers.size();
+        return mPeers.size();
     }
 
     public void notifyPeerAdded(Peer peer) {
-        peers.add(peer);
-        notifyItemInserted(peers.size()-1);
+        mPeers.add(peer);
+        notifyItemInserted(mPeers.size()-1);
     }
 
     public void notifyPeerRemoved(Peer peer) {
-        int idx = peers.indexOf(peer);
+        int idx = mPeers.indexOf(peer);
         if (idx != -1) {
-            peers.remove(idx);
+            mPeers.remove(idx);
             notifyItemRemoved(idx);
         }
     }

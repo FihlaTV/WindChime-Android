@@ -1,19 +1,22 @@
 package pro.dbro.airshare.session;
 
+import androidx.annotation.NonNull;
+
 import java.util.Arrays;
 import java.util.Date;
 
 /**
  * Created by davidbrodsky on 2/21/15.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class Peer {
 
 
-    private byte[] publicKey;
-    private String alias;
-    private Date lastSeen;
-    private int rssi;
-    protected int transports;
+    private byte[] mPublicKey;
+    private String mAlias;
+    private Date mLastSeen;
+    private int mRssi;
+    protected int mTransports;
 
     public Peer(byte[] publicKey,
                    String alias,
@@ -21,44 +24,45 @@ public class Peer {
                    int rssi,
                    int transports) {
 
-        this.publicKey = publicKey;
-        this.alias = alias;
-        this.lastSeen = lastSeen;
-        this.rssi = rssi;
-        this.transports = transports;
+        mPublicKey = publicKey;
+        mAlias = alias;
+        mLastSeen = lastSeen;
+        mRssi = rssi;
+        mTransports = transports;
     }
 
     public byte[] getPublicKey() {
-        return publicKey;
+        return mPublicKey;
     }
 
     public String getAlias() {
-        return alias;
+        return mAlias;
     }
 
     public Date getLastSeen() {
-        return lastSeen;
+        return mLastSeen;
     }
 
     public int getRssi() {
-        return rssi;
+        return mRssi;
     }
 
     public int getTransports() {
-        return transports;
+        return mTransports;
     }
 
     public boolean supportsTransportWithCode(int transportCode) {
-        return (transports & transportCode) == transportCode;
+        return (mTransports & transportCode) == transportCode;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "Peer{" +
-                "publicKey=" + Arrays.toString(publicKey) +
-                ", alias='" + alias + '\'' +
-                ", lastSeen=" + lastSeen +
-                ", rssi=" + rssi +
+                "publicKey=" + Arrays.toString(mPublicKey) +
+                ", alias='" + mAlias + '\'' +
+                ", lastSeen=" + mLastSeen +
+                ", rssi=" + mRssi +
                 '}';
     }
 
@@ -71,7 +75,7 @@ public class Peer {
         if (getClass().equals(obj.getClass()))
         {
             Peer other = (Peer) obj;
-            return Arrays.equals(publicKey, other.publicKey);
+            return Arrays.equals(mPublicKey, other.mPublicKey);
         }
 
         return false;
@@ -79,6 +83,6 @@ public class Peer {
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(publicKey);
+        return Arrays.hashCode(mPublicKey);
     }
 }

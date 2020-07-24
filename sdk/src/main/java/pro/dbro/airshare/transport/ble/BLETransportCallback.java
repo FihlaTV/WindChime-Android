@@ -9,20 +9,19 @@ import pro.dbro.airshare.transport.Transport;
  */
 public interface BLETransportCallback {
 
-    public static enum DeviceType { CENTRAL, PERIPHERAL }
+    enum DeviceType { CENTRAL, PERIPHERAL }
 
-    public void dataReceivedFromIdentifier(DeviceType deviceType,
-                                           byte[] data,
-                                           String identifier);
+    void dataReceivedFromIdentifier(DeviceType deviceType,
+                                    byte[] data,
+                                    String identifier);
 
-    public void dataSentToIdentifier(DeviceType deviceType,
-                                     byte[] data,
-                                     String identifier,
-                                     Exception e);
+    void dataSentToIdentifier(DeviceType deviceType,
+                              byte[] data,
+                              String identifier,
+                              Exception e);
 
-    public void identifierUpdated(DeviceType deviceType,
-                                  String identifier,
-                                  Transport.ConnectionStatus status,
-                                  Map<String, Object> extraInfo);
-
+    void identifierUpdated(DeviceType deviceType,
+                           String identifier,
+                           Transport.ConnectionStatus status,
+                           Map<String, Object> extraInfo);
 }

@@ -1,8 +1,8 @@
 package pro.dbro.airshare.session;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.Pair;
 
 import com.google.common.collect.BiMap;
@@ -13,6 +13,7 @@ import com.google.common.collect.SetMultimap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -28,6 +29,7 @@ import timber.log.Timber;
 /**
  * Created by davidbrodsky on 2/21/15.
  */
+@SuppressWarnings("unused")
 public class SessionManager implements Transport.TransportCallback,
                                        SessionMessageDeserializer.SessionMessageDeserializerCallback,
                                        SessionMessageScheduler {
@@ -61,22 +63,23 @@ public class SessionManager implements Transport.TransportCallback,
 
     }
 
-    private Context                                   context;
-    private String                                    serviceName;
-    private SortedSet<Transport>                      transports;
-    private LocalPeer                                 localPeer;
-    private IdentityMessage                           localIdentityMessage;
-    private SessionManagerCallback                    callback;
-    private HashMap<String, Transport>                identifierTransports       = new HashMap<>();
-    private HashMap<Peer, SortedSet<Transport>>       peerTransports             = new HashMap<>();
-    private BiMap<String, SessionMessageDeserializer> identifierReceivers        = HashBiMap.create();
-    private BiMap<String, SessionMessageSerializer>   identifierSenders          = HashBiMap.create();
-    private final HashMap<String, Peer>               identifiedPeers            = new HashMap<>();
-    private final SetMultimap<Peer, String>           peerIdentifiers            = HashMultimap.create();
-    private Set<String>                               identifyingPeers           = new HashSet<>();
-    private Set<String>                               hostIdentifiers            = new HashSet<>();
-    private HashMap<Peer, Transport>                  peerUpgradeRequests        = new HashMap<>();
-    private TransportState                            baseTransportState         = new TransportState(false, false, false);
+    private Context mContext;
+    private String mServiceName;
+    private SortedSet<Transport> mTransports;
+    @SuppressWarnings("FieldCanBeLocal")
+    private LocalPeer mLocalPeer;
+    private IdentityMessage mLocalIdentityMessage;
+    private SessionManagerCallback mCallback;
+    private HashMap<String, Transport> mIdentifierTransports = new HashMap<>();
+    private HashMap<Peer, SortedSet<Transport>> mPeerTransports = new HashMap<>();
+    private BiMap<String, SessionMessageDeserializer> mIdentifierReceivers = HashBiMap.create();
+    private BiMap<String, SessionMessageSerializer> mIdentifierSenders = HashBiMap.create();
+    private final HashMap<String, Peer> mIdentifiedPeers = new HashMap<>();
+    private final SetMultimap<Peer, String> mPeerIdentifiers = HashMultimap.create();
+    private Set<String> mIdentifyingPeers = new HashSet<>();
+    private Set<String> mHostIdentifiers = new HashSet<>();
+    private HashMap<Peer, Transport> mPeerUpgradeRequests = new HashMap<>();
+    private TransportState mBaseTransportState = new TransportState(false, false, false);
 
     // <editor-fold desc="Public API">
 
@@ -85,30 +88,30 @@ public class SessionManager implements Transport.TransportCallback,
                           LocalPeer localPeer,
                           SessionManagerCallback callback) {
 
-        this.context     = context;
-        this.serviceName = serviceName;
-        this.localPeer   = localPeer;
-        this.callback    = callback;
+        mContext = context;
+        mServiceName = serviceName;
+        mLocalPeer = localPeer;
+        mCallback = callback;
 
-        localIdentityMessage = new IdentityMessage(this.context, this.localPeer);
+        mLocalIdentityMessage = new IdentityMessage(mLocalPeer);
 
         initializeTransports(serviceName);
     }
 
     public String getServiceName() {
-        return serviceName;
+        return mServiceName;
     }
 
     public void advertiseLocalPeer() {
         // Only advertise on the "base" (first) transport
-        transports.first().advertise();
-        baseTransportState = new TransportState(baseTransportState.isStopped, true, baseTransportState.wasScanning);
+        mTransports.first().advertise();
+        mBaseTransportState = new TransportState(mBaseTransportState.isStopped, true, mBaseTransportState.wasScanning);
     }
 
     public void scanForPeers() {
         // Only scan on the "base" (first) transport
-        transports.first().scanForPeers();
-        baseTransportState = new TransportState(baseTransportState.isStopped, baseTransportState.wasAdvertising, true);
+        mTransports.first().scanForPeers();
+        mBaseTransportState = new TransportState(mBaseTransportState.isStopped, mBaseTransportState.wasAdvertising, true);
     }
 
     /**
@@ -120,7 +123,7 @@ public class SessionManager implements Transport.TransportCallback,
     @DebugLog
     public synchronized void sendMessage(SessionMessage message, Peer recipient) {
 
-        Set<String> recipientIdentifiers = peerIdentifiers.get(recipient);
+        Set<String> recipientIdentifiers = mPeerIdentifiers.get(recipient);
         String targetRecipientIdentifier = null;
 
         if (recipientIdentifiers == null || recipientIdentifiers.size() == 0) { // TODO: Does HashMultiMap return null or empty collection?
@@ -136,8 +139,9 @@ public class SessionManager implements Transport.TransportCallback,
         }
 
         for (String recipientIdentifier : recipientIdentifiers) {
-            if (identifierTransports.get(recipientIdentifier).equals(transport))
+            if (transport.equals(mIdentifierTransports.get(recipientIdentifier))) {
                 targetRecipientIdentifier = recipientIdentifier;
+            }
         }
 
         if (targetRecipientIdentifier == null) {
@@ -146,12 +150,15 @@ public class SessionManager implements Transport.TransportCallback,
             // TODO : Fall back to base transport
         }
 
-        if (!identifierSenders.containsKey(targetRecipientIdentifier))
-            identifierSenders.put(targetRecipientIdentifier, new SessionMessageSerializer(message));
-        else
-            identifierSenders.get(targetRecipientIdentifier).queueMessage(message);
+        SessionMessageSerializer sender = mIdentifierSenders.get(targetRecipientIdentifier);
 
-        SessionMessageSerializer sender = identifierSenders.get(targetRecipientIdentifier);
+        if (sender == null) {
+            sender = new SessionMessageSerializer(message);
+            mIdentifierSenders.put(targetRecipientIdentifier, sender);
+        }
+        else {
+            sender.queueMessage(message);
+        }
 
         transport.sendData(sender.getNextChunk(transport.getMtuForIdentifier(targetRecipientIdentifier)),
                                targetRecipientIdentifier);
@@ -162,14 +169,15 @@ public class SessionManager implements Transport.TransportCallback,
     }
 
     public Set<Peer> getAvailablePeers() {
-        return new HashSet<Peer>(identifiedPeers.values());
+        return new HashSet<>(mIdentifiedPeers.values());
     }
 
     @DebugLog
     public synchronized void stop() {
         // Stop all running transports
-        for (Transport transport : transports)
+        for (Transport transport : mTransports) {
             transport.stop();
+        }
 
         reset();
     }
@@ -179,7 +187,7 @@ public class SessionManager implements Transport.TransportCallback,
         Timber.d("Transport upgrade with %s requested", remotePeer.getAlias());
         Transport supplementalTransport = null;
 
-        for (Transport transport : transports) {
+        for (Transport transport : mTransports) {
             supplementalTransport = transport;
 
             if (!remotePeer.supportsTransportWithCode(supplementalTransport.getTransportCode())) {
@@ -195,13 +203,13 @@ public class SessionManager implements Transport.TransportCallback,
                      remotePeer.getAlias());
 
 
-            peerUpgradeRequests.put(remotePeer, supplementalTransport);
+            mPeerUpgradeRequests.put(remotePeer, supplementalTransport);
             upgradeTransport(remotePeer, supplementalTransport.getTransportCode());
             sendMessage(new TransportUpgradeMessage(supplementalTransport.getTransportCode()), remotePeer);
         } else {
             String message = "Transport upgrade could not proceed. No suitable transport found";
             Timber.w(message);
-            callback.peerTransportUpdated(remotePeer, -1, new UnsupportedOperationException(message));
+            mCallback.peerTransportUpdated(remotePeer, -1, new UnsupportedOperationException(message));
         }
     }
 
@@ -210,20 +218,20 @@ public class SessionManager implements Transport.TransportCallback,
      */
     @DebugLog
     public synchronized void downgradeTransport() {
-        Iterator<Transport> transportIterator = transports.iterator();
+        Iterator<Transport> transportIterator = mTransports.iterator();
         Transport baseTransport = transportIterator.next();
 
         while (transportIterator.hasNext())
             transportIterator.next().stop();
 
-        if (baseTransportState.isStopped) {
+        if (mBaseTransportState.isStopped) {
             Timber.d("Resuming base transport");
-            baseTransportState = new TransportState(false,
-                    baseTransportState.wasAdvertising,
-                    baseTransportState.wasScanning);
+            mBaseTransportState = new TransportState(false,
+                    mBaseTransportState.wasAdvertising,
+                    mBaseTransportState.wasScanning);
 
-            if (baseTransportState.wasAdvertising) baseTransport.advertise();
-            if (baseTransportState.wasScanning) baseTransport.scanForPeers();
+            if (mBaseTransportState.wasAdvertising) baseTransport.advertise();
+            if (mBaseTransportState.wasScanning) baseTransport.scanForPeers();
         }
     }
 
@@ -247,31 +255,31 @@ public class SessionManager implements Transport.TransportCallback,
 
     private void reset() {
 
-        identifierTransports.clear();
-        peerTransports.clear();
-        identifierReceivers.clear();
-        identifierSenders.clear();
-        identifiedPeers.clear();
-        identifyingPeers.clear();
-        hostIdentifiers.clear();
-        peerUpgradeRequests.clear();
-        peerIdentifiers.clear();
+        mIdentifierTransports.clear();
+        mPeerTransports.clear();
+        mIdentifierReceivers.clear();
+        mIdentifierSenders.clear();
+        mIdentifiedPeers.clear();
+        mIdentifyingPeers.clear();
+        mHostIdentifiers.clear();
+        mPeerUpgradeRequests.clear();
+        mPeerIdentifiers.clear();
 
-        baseTransportState = new TransportState(false, false, false);
+        mBaseTransportState = new TransportState(false, false, false);
     }
 
     private void initializeTransports(String serviceName) {
         // First transport is considered "base" transport
         // Additional transports are considered supplementary and
         // will only be activated upon request
-        transports = new TreeSet<>();
-        transports.add(new BLETransport(context, serviceName, this));
-        transports.add(new WifiTransport(context, serviceName, this));
+        mTransports = new TreeSet<>();
+        mTransports.add(new BLETransport(mContext, serviceName, this));
+        mTransports.add(new WifiTransport(mContext, serviceName, this));
     }
 
     private Transport getAvailableTransportByCode(int transportCode) {
         Transport requestedTransport = null;
-        for (Transport transport : transports) {
+        for (Transport transport : mTransports) {
             if (transport.getTransportCode() == transportCode) {
                 requestedTransport = transport;
             }
@@ -284,15 +292,19 @@ public class SessionManager implements Transport.TransportCallback,
 
         if (requestedTransport == null) {
             Timber.d("Cannot find requested transport %d. Ignoring request", transportCode);
-            callback.peerTransportUpdated(remotePeer, -1, new UnsupportedOperationException(String.format("Device does not support requested transport with code %d", transportCode)));
+            mCallback.peerTransportUpdated(remotePeer, -1,
+                    new UnsupportedOperationException(String.format(Locale.US,
+                            "Device does not support requested transport with code %d", transportCode)));
             return;
         }
 
         // Preserve host / client relationship in new transport
-        if (hostIdentifiers.contains(peerIdentifiers.get(remotePeer).iterator().next())) { // TODO : Guard against remotePeer not in peerIdentifiers
+        if (mHostIdentifiers.contains(mPeerIdentifiers.get(remotePeer).iterator().next())) {
+            // TODO : Guard against remotePeer not in peerIdentifiers
             Timber.d("Transport upgrade requested with host peer, acting as client on new transport");
             requestedTransport.scanForPeers();
-        } else {
+        }
+        else {
             Timber.d("Transport upgrade requested with client peer, acting as host on new transport");
             requestedTransport.advertise();
         }
@@ -301,41 +313,50 @@ public class SessionManager implements Transport.TransportCallback,
 
     private @Nullable Transport getPreferredTransportForPeer(Peer peer) {
 
-        if (!peerTransports.containsKey(peer) || peerTransports.get(peer).size() == 0)
-                return null;
+        SortedSet<Transport> transports = mPeerTransports.get(peer);
+
+        if (transports == null || transports.size() == 0) {
+            return null;
+        }
 
         // Return the Transport with the highest value (largest MTU)
-        return peerTransports.get(peer)
-                             .last();
+        return transports.last();
     }
 
     private boolean shouldIdentifyPeer(String identifier) {
         // TODO : Might have banned peers etc.
-        return !identifyingPeers.contains(identifier);
+        return !mIdentifyingPeers.contains(identifier);
     }
 
     private void registerTransportForIdentifier(Transport transport, String identifier) {
-        if (identifierTransports.containsKey(identifier)) {
+        if (mIdentifierTransports.containsKey(identifier)) {
             //Timber.w("Transport already registered for identifier %s", identifier);
             return;
         }
 
         Timber.d("Transported added for identifier %s", identifier);
-        identifierTransports.put(identifier, transport);
+        mIdentifierTransports.put(identifier, transport);
     }
 
     private void registerTransportForPeer(Transport transport, Peer peer) {
-        if (!peerTransports.containsKey(peer))
-            peerTransports.put(peer, new TreeSet<Transport>());
+        SortedSet<Transport> transports = mPeerTransports.get(peer);
 
-        boolean newTransport = peerTransports.get(peer).add(transport);
+        if (transports == null) {
+            transports = new TreeSet<>();
+            mPeerTransports.put(peer, transports);
+        }
+
+        boolean newTransport = transports.add(transport);
+
         if (newTransport) {
             Timber.d("Transport added for peer %s", peer.getAlias());
-            if (peerUpgradeRequests.containsKey(peer) &&
-                peerUpgradeRequests.get(peer).getTransportCode() == transport.getTransportCode()) {
 
+            Transport upgrade2Transport = mPeerUpgradeRequests.get(peer);
+
+            if (upgrade2Transport != null && upgrade2Transport.getTransportCode() == transport.getTransportCode()) {
                 Timber.d("Established upgraded transport connection with %s", peer.getAlias());
-                peerUpgradeRequests.remove(peer);
+
+                mPeerUpgradeRequests.remove(peer);
                 // Important: client must call callback.onPeerTransportUpdated(peer, transport, null);
                 // when appropriate
             }
@@ -354,11 +375,14 @@ public class SessionManager implements Transport.TransportCallback,
         // so we use this opportunity to associate the identifier with its transport
         registerTransportForIdentifier(transport, identifier);
 
-        if (!identifierReceivers.containsKey(identifier))
-            identifierReceivers.put(identifier, new SessionMessageDeserializer(context, this));
+        SessionMessageDeserializer deserializer = mIdentifierReceivers.get(identifier);
 
-        identifierReceivers.get(identifier)
-                           .dataReceived(data);
+        if (deserializer == null) {
+            deserializer = new SessionMessageDeserializer(mContext, this);
+            mIdentifierReceivers.put(identifier, deserializer);
+        }
+
+        deserializer.dataReceived(data);
     }
 
     @Override
@@ -370,7 +394,7 @@ public class SessionManager implements Transport.TransportCallback,
             return;
         }
 
-        SessionMessageSerializer sender = identifierSenders.get(identifier);
+        SessionMessageSerializer sender = mIdentifierSenders.get(identifier);
 
         if (sender == null) {
             Timber.w("No sender for dataSentToIdentifier to %s", identifier);
@@ -390,52 +414,51 @@ public class SessionManager implements Transport.TransportCallback,
                                   progress * 100,
                                   identifier);
 
-            if (progress == 1 && message.equals(localIdentityMessage)) {
+            if (progress == 1 && message.equals(mLocalIdentityMessage)) {
                 Timber.d("Local identity acknowledged by recipient");
-                identifyingPeers.add(identifier);
+                mIdentifyingPeers.add(identifier);
             }
 
-            Peer recipient = identifiedPeers.get(identifier);
+            Peer recipient = mIdentifiedPeers.get(identifier);
             if (recipient != null) {
                 if (progress == 1) {
 
                     // Process completely sent AirShare messages, pass non-AirShare messages
-                    // up via messageSentToPeer
-                    if (message.equals(localIdentityMessage)) {
-
-                        if (peerIdentifiers.get(recipient).size() == 1) {
+                    // up via messageSentToPeer.
+                    if (message.equals(mLocalIdentityMessage)) {
+                        if (mPeerIdentifiers.get(recipient).size() == 1) {
                             Timber.d("Reporting peer connected after last id sent");
-                            callback.peerStatusUpdated(recipient,
+                            mCallback.peerStatusUpdated(recipient,
                                                        Transport.ConnectionStatus.CONNECTED,
-                                                       hostIdentifiers.contains(identifier));
+                                                       mHostIdentifiers.contains(identifier));
                         }
-
-                    } else if (message.getType().equals(TransportUpgradeMessage.HEADER_TYPE)) {
+                    }
+                    else if (message.getType().equals(TransportUpgradeMessage.HEADER_TYPE)) {
                         // Report transport upgraded once peer connects over new transport
                         // don't report to #messageSendingToPeer
                         Timber.d("Sent TranportUpgradeMessage");
-
-                    } else {
-                        callback.messageSentToPeer(message,
-                                identifiedPeers.get(identifier),
-                                null);
                     }
-
-                } else {
-
-                    callback.messageSendingToPeer(message,
-                            identifiedPeers.get(identifier),
-                            progress);
+                    else {
+                        mCallback.messageSentToPeer(message, recipient,null);
+                    }
                 }
-            } else
+                else {
+                    mCallback.messageSendingToPeer(message, recipient, progress);
+                }
+            }
+            else {
                 Timber.w("Cannot report %s message send, %s not yet identified",
-                    message.getType(), identifier);
+                        message.getType(), identifier);
+            }
 
             byte[] toSend = sender.getNextChunk(transport.getMtuForIdentifier(identifier));
-            if (toSend != null)
+            if (toSend != null) {
                 transport.sendData(toSend, identifier);
-        } else
+            }
+        }
+        else {
             Timber.w("No current message corresponding to dataSentToIdentifier");
+        }
     }
 
     @Override
@@ -448,13 +471,13 @@ public class SessionManager implements Transport.TransportCallback,
         switch(status) {
             case CONNECTED:
                 Timber.d("Connected to %s", identifier);
-                if (peerIsHost) hostIdentifiers.add(identifier);
+                if (peerIsHost) mHostIdentifiers.add(identifier);
 
                 // Only one peer (client) needs to initiate identification
                 if (peerIsHost && shouldIdentifyPeer(identifier)) {
                     Timber.d("Queuing identity to %s", identifier);
-                    if (!identifierSenders.containsKey(identifier)) {
-                        identifierSenders.put(identifier, new SessionMessageSerializer(localIdentityMessage));
+                    if (!mIdentifierSenders.containsKey(identifier)) {
+                        mIdentifierSenders.put(identifier, new SessionMessageSerializer(mLocalIdentityMessage));
                     } else
                         Timber.w("Outgoing messages already exist for unidentified peer %s", identifier);
                 }
@@ -462,7 +485,7 @@ public class SessionManager implements Transport.TransportCallback,
                 registerTransportForIdentifier(transport, identifier);
 
                 // Send outgoing messages to peer
-                SessionMessageSerializer sender = identifierSenders.get(identifier);
+                SessionMessageSerializer sender = mIdentifierSenders.get(identifier);
 
                 if (sender != null && sender.getCurrentMessage() != null) {
 
@@ -484,30 +507,33 @@ public class SessionManager implements Transport.TransportCallback,
                 break;
 
             case DISCONNECTED:
-                if (peerIsHost) hostIdentifiers.remove(identifier);
+                if (peerIsHost) mHostIdentifiers.remove(identifier);
 
-                Peer peer = identifiedPeers.get(identifier);
+                Peer peer = mIdentifiedPeers.get(identifier);
 
                 if (peer != null) {
-
                     Timber.d("Disconnected from %s (%s). Had %d transports",
                             identifier,
                             peer.getAlias(),
-                            peerIdentifiers.get(peer).size());
+                            mPeerIdentifiers.get(peer).size());
 
-                    peerTransports.get(peer).remove(transport);
-                    Set<String> identifiers = peerIdentifiers.get(peer);
+                    SortedSet<Transport> transports = mPeerTransports.get(peer);
+                    if (transports != null) {
+                        transports.remove(transport);
+                    }
+
+                    Set<String> identifiers = mPeerIdentifiers.get(peer);
                     identifiers.remove(identifier);
 
                     // If all transports for this peer are disconnected, send disconnect
                     if (identifiers.size() == 0) {
                         Timber.d("Disconnected from %s", peer.getAlias());
 
-                        callback.peerStatusUpdated(identifiedPeers.get(identifier),
-                                Transport.ConnectionStatus.DISCONNECTED,
-                                peerIsHost);
+                        mCallback.peerStatusUpdated(peer,
+                                Transport.ConnectionStatus.DISCONNECTED, peerIsHost);
 
-                    } else if (identifiers.size() > 0) {
+                    }
+                    else {
                         Timber.d("Transport disconnected from %s. %d others remain", peer.getAlias(), identifiers.size());
                         // One of the peers' identifiers disconnected.
                         // If it was a supplementary transport, we should report the base transport
@@ -517,19 +543,20 @@ public class SessionManager implements Transport.TransportCallback,
                         // identifiers for this peer. In this case, we should crash because it's the fault
                         // of this code
                         if (remainingTransport instanceof BLETransport) {
-                            callback.peerTransportUpdated(peer, remainingTransport.getTransportCode(), null);
+                            mCallback.peerTransportUpdated(peer, remainingTransport.getTransportCode(), null);
                         }
-
                     }
-
-                } else
+                }
+                else {
                     Timber.w("Could not report disconnection, peer not identified");
+                }
 
-                identifierTransports.remove(identifier);
-                identifyingPeers.remove(identifier);
-                identifiedPeers.remove(identifier);
-                identifierSenders.remove(identifier);
-                identifierReceivers.remove(identifier);
+                mIdentifierTransports.remove(identifier);
+                mIdentifyingPeers.remove(identifier);
+                mIdentifiedPeers.remove(identifier);
+                mIdentifierSenders.remove(identifier);
+                mIdentifierReceivers.remove(identifier);
+
                 break;
         }
     }
@@ -541,17 +568,21 @@ public class SessionManager implements Transport.TransportCallback,
     @Override
     public void onHeaderReady(SessionMessageDeserializer receiver, SessionMessage message) {
 
-        String senderIdentifier = identifierReceivers.inverse().get(receiver);
+        String senderIdentifier = mIdentifierReceivers.inverse().get(receiver);
         Timber.d("Received header for %s message from %s", message.getType(), senderIdentifier);
     }
 
     @Override
     public void onBodyProgress(SessionMessageDeserializer receiver, SessionMessage message, float progress) {
 
-        String senderIdentifier = identifierReceivers.inverse().get(receiver);
+        String senderIdentifier = mIdentifierReceivers.inverse().get(receiver);
         if (VERBOSE) Timber.d("Received %s message with progress %f from %s", message.getType(), progress, senderIdentifier);
 
-        callback.messageReceivingFromPeer(message, identifiedPeers.get(senderIdentifier), progress);
+        Peer peer = mIdentifiedPeers.get(senderIdentifier);
+
+        if (peer != null) {
+            mCallback.messageReceivingFromPeer(message, peer, progress);
+        }
     }
 
     @Override
@@ -561,73 +592,80 @@ public class SessionManager implements Transport.TransportCallback,
         // Process messages belonging to the AirShare framework and propagate
         // application level messages via our callback
 
-        String senderIdentifier = identifierReceivers.inverse().get(receiver);
+        String senderIdentifier = mIdentifierReceivers.inverse().get(receiver);
 
         if (e == null) {
 
             Timber.d("Received complete %s message from %s", message.getType(), senderIdentifier);
 
+            Peer peer = mIdentifiedPeers.get(senderIdentifier);
+
             if (message instanceof IdentityMessage) {
 
-                Peer peer = ((IdentityMessage) message).getPeer();
+                peer = ((IdentityMessage) message).getPeer();
 
-                peerIdentifiers.put(peer, senderIdentifier);
+                mPeerIdentifiers.put(peer, senderIdentifier);
 
-                boolean sentIdentityToSender = identifyingPeers.contains(senderIdentifier);
-                boolean newIdentity = !identifiedPeers.containsKey(senderIdentifier); // should never be false
+                boolean sentIdentityToSender = mIdentifyingPeers.contains(senderIdentifier);
+                boolean newIdentity = !mIdentifiedPeers.containsKey(senderIdentifier); // should never be false
 
-                identifyingPeers.remove(senderIdentifier);
-                identifiedPeers.put(senderIdentifier, peer);
+                mIdentifyingPeers.remove(senderIdentifier);
+                mIdentifiedPeers.put(senderIdentifier, peer);
 
-                Transport identifierTransport = identifierTransports.get(senderIdentifier);
-                boolean newTransport = peerTransports.get(peer) == null || !peerTransports.get(peer).contains(identifierTransport);
+                Transport identifierTransport = mIdentifierTransports.get(senderIdentifier);
+
+                if (identifierTransport == null) {
+                    Timber.w("Couldn't identify transport with id %s.", senderIdentifier);
+
+                    return;
+                }
+
+                SortedSet<Transport> transports = mPeerTransports.get(peer);
+                boolean newTransport = transports == null || !transports.contains(identifierTransport);
                 registerTransportForPeer(identifierTransport, peer);
 
                 if (newIdentity) {
-                    Timber.d("Received #%s identifier for %s. %s", String.valueOf(peerIdentifiers.get(peer).size()),
+                    Timber.d("Received #%s identifier for %s. %s", String.valueOf(mPeerIdentifiers.get(peer).size()),
                                                                  peer.getAlias(),
                                                                  sentIdentityToSender ? "" : "Responding with own.");
                     // As far as upper layers are concerned, connection events occur when the remote
                     // peer is identified.
                     if (!sentIdentityToSender)
-                        sendMessage(localIdentityMessage, peer); // Report peer connected after identity send ack'd
-                    else if (peerIdentifiers.get(peer).size() == 1) // If peer is already connected via another transport, don't re-notify
-                        callback.peerStatusUpdated(peer, Transport.ConnectionStatus.CONNECTED, hostIdentifiers.contains(senderIdentifier));
+                        sendMessage(mLocalIdentityMessage, peer); // Report peer connected after identity send ack'd
+                    else if (mPeerIdentifiers.get(peer).size() == 1) // If peer is already connected via another transport, don't re-notify
+                        mCallback.peerStatusUpdated(peer, Transport.ConnectionStatus.CONNECTED, mHostIdentifiers.contains(senderIdentifier));
                 }
 
                 // We must notify client of new transport *after* sending identity, if necessary. Else they might queue data ahead of it
-                if (newTransport && peerIdentifiers.get(peer).size() > 1) {
-                    callback.peerTransportUpdated(peer, identifierTransport.getTransportCode(), null);
+                if (newTransport && mPeerIdentifiers.get(peer).size() > 1) {
+                    mCallback.peerTransportUpdated(peer, identifierTransport.getTransportCode(), null);
 
                     // TESTING : Stop base transport when upgrade successful
-                    Timber.d("Stopping base transport. %d identifiers for peer", peerIdentifiers.get(peer).size());
-                    baseTransportState = new TransportState(true, baseTransportState.wasAdvertising, baseTransportState.wasScanning);
-                    Transport baseTransport = transports.first();
+                    Timber.d("Stopping base transport. %d identifiers for peer", mPeerIdentifiers.get(peer).size());
+                    mBaseTransportState = new TransportState(true, mBaseTransportState.wasAdvertising, mBaseTransportState.wasScanning);
+                    Transport baseTransport = mTransports.first();
                     baseTransport.stop();
                 }
-
-            } else if (message instanceof TransportUpgradeMessage) {
-                Peer peer = identifiedPeers.get(senderIdentifier);
+            }
+            else if (message instanceof TransportUpgradeMessage) {
                 int transportCode = ((TransportUpgradeMessage) message).getTransportCode();
-                Timber.d("Got TransportUpgradeMessage for transport %d from %s", transportCode, peer.getAlias());
-                peerUpgradeRequests.put(peer, getAvailableTransportByCode(transportCode));
+                Timber.d("Got TransportUpgradeMessage for transport %d from %s", transportCode, peer != null ? peer.getAlias() : "null");
+                mPeerUpgradeRequests.put(peer, getAvailableTransportByCode(transportCode));
                 upgradeTransport(peer, transportCode);
-
-            } else if (identifiedPeers.containsKey(senderIdentifier)) {
+            }
+            else if (peer != null) {
                 // This message is not involved in the AirShare framework, so we notify the next layer up
-                callback.messageReceivedFromPeer(message, identifiedPeers.get(senderIdentifier));
-
-            } else {
-
+                mCallback.messageReceivedFromPeer(message, peer);
+            }
+            else {
                 Timber.w("Received complete non-identity message from unidentified peer");
             }
-
-        } else {
+        }
+        else {
             Timber.d("Incoming message from %s failed with error '%s'", senderIdentifier, e.getLocalizedMessage());
             e.printStackTrace();
         }
     }
 
     // </editor-fold desc="SessionMessageReceiverCallback">
-
 }

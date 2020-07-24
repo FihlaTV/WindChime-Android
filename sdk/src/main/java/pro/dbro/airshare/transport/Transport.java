@@ -1,60 +1,58 @@
 package pro.dbro.airshare.transport;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-
-import com.google.common.base.Objects;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.lang.ref.WeakReference;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * Created by davidbrodsky on 2/21/15.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public abstract class Transport implements Comparable<Transport> {
 
-    public static enum ConnectionStatus {
+    @SuppressWarnings("unused")
+    public enum ConnectionStatus {
         DISCONNECTED,
         CONNECTING,
         CONNECTED
     }
 
-    public static interface TransportCallback {
+    public interface TransportCallback {
 
-        public void dataReceivedFromIdentifier(Transport transport,
-                                               byte[] data,
-                                               String identifier);
+        void dataReceivedFromIdentifier(Transport transport,
+                                        byte[] data,
+                                        String identifier);
 
-        public void dataSentToIdentifier(Transport transport,
-                                         byte[] data,
-                                         String identifier,
-                                         Exception exception);
+        void dataSentToIdentifier(Transport transport,
+                                  byte[] data,
+                                  String identifier,
+                                  Exception exception);
 
-        public void identifierUpdated(Transport transport,
-                                      String identifier,
-                                      ConnectionStatus status,
-                                      boolean peerIsHost,
-                                      Map<String, Object> extraInfo);
-
+        void identifierUpdated(Transport transport,
+                               String identifier,
+                               ConnectionStatus status,
+                               boolean peerIsHost,
+                               Map<String, Object> extraInfo);
     }
 
-    protected String serviceName;
-    protected WeakReference<TransportCallback> callback;
+    protected String mServiceName;
+    protected WeakReference<TransportCallback> mCallback;
 
     public Transport(String serviceName, TransportCallback callback) {
-        this.serviceName = serviceName;
-        this.callback = new WeakReference<>(callback);
+        mServiceName = serviceName;
+        mCallback = new WeakReference<>(callback);
     }
 
     public void setTransportCallback(TransportCallback callback) {
-        this.callback = new WeakReference<>(callback);
+        mCallback = new WeakReference<>(callback);
     }
 
     @Nullable
     public TransportCallback getCallback() {
-        return callback.get();
+        return mCallback.get();
     }
 
     public abstract boolean sendData(byte[] data, Set<String> identifier);
@@ -105,5 +103,4 @@ public abstract class Transport implements Comparable<Transport> {
     public int hashCode() {
         return getTransportCode();
     }
-
 }

@@ -11,26 +11,27 @@ import pro.dbro.airshare.session.SessionMessage;
  *
  * Created by davidbrodsky on 3/13/15.
  */
+@SuppressWarnings("WeakerAccess")
 public class IncomingTransfer extends Transfer implements IncomingMessageListener, MessageDeliveryListener {
 
-    private Peer sender;
+    private Peer mSender;
 
     // <editor-fold desc="Incoming Constructors">
 
     public IncomingTransfer(DataTransferMessage dataMessage, Peer sender) {
 
-        this.sender = sender;
-        transferMessage = dataMessage;
+        mSender = sender;
+        mTransferMessage = dataMessage;
     }
 
     // </editor-fold desc="Incoming Constructors">
 
     public String getTransferId() {
-        return (String) transferMessage.getHeaders().get(SessionMessage.HEADER_ID);
+        return (String) mTransferMessage.getHeaders().get(SessionMessage.HEADER_ID);
     }
 
     public Peer getSender() {
-        return sender;
+        return mSender;
     }
 
     public boolean isComplete() {

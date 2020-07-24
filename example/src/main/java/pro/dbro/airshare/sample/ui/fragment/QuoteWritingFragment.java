@@ -1,13 +1,15 @@
 package pro.dbro.airshare.sample.ui.fragment;
 
 
-import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
 
 import pro.dbro.airshare.sample.R;
 
@@ -16,9 +18,9 @@ import pro.dbro.airshare.sample.R;
  */
 public class QuoteWritingFragment extends Fragment {
 
-    public static interface WritingFragmentListener {
+    public interface WritingFragmentListener {
 
-        public void onShareRequested(String quote, String author);
+        void onShareRequested(String quote, String author);
     }
 
     private WritingFragmentListener listener;
@@ -34,8 +36,8 @@ public class QuoteWritingFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View root = inflater.inflate(R.layout.fragment_writing, container, false);
-        quoteEntry = (EditText) root.findViewById(R.id.quote_entry);
-        authorEntry = (EditText) root.findViewById(R.id.author_entry);
+        quoteEntry = root.findViewById(R.id.quote_entry);
+        authorEntry = root.findViewById(R.id.author_entry);
 
         root.findViewById(R.id.share_button).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -49,15 +51,14 @@ public class QuoteWritingFragment extends Fragment {
     }
 
     @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+
         try {
-            listener = (WritingFragmentListener) activity;
+            listener = (WritingFragmentListener) context;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
+            throw new ClassCastException(context.toString()
                     + " must implement WritingFragmentListener");
         }
     }
-
-
 }
