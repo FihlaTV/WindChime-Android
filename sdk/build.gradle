@@ -4,7 +4,7 @@ apply plugin: 'com.jakewharton.hugo'
 
 android {
     compileSdkVersion 29
-    buildToolsVersion "29.0.2"
+    buildToolsVersion "29.0.3"
 
     defaultConfig {
         minSdkVersion 18
@@ -35,6 +35,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     api 'com.jakewharton.timber:timber:2.7.1'
-    implementation 'org.apache.directory.studio:org.apache.commons.codec:1.8'
+    implementation 'commons-codec:commons-codec:1.10'
     implementation 'com.google.guava:guava:24.1-jre'
 }
