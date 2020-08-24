@@ -8,6 +8,5 @@ package pro.dbro.airshare.session;
  */
 public interface SessionMessageScheduler {
 
-    public void sendMessage(SessionMessage message, Peer recipient);
-
+    void sendMessage(SessionMessage message, Peer recipient);
 }

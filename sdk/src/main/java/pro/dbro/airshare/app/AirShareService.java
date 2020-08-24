@@ -8,8 +8,8 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.BiMap;
@@ -33,12 +33,13 @@ import timber.log.Timber;
 /**
  * Created by davidbrodsky on 11/4/14.
  */
+@SuppressWarnings("unused")
 public class AirShareService extends Service implements ActivityRecevingMessagesIndicator,
                                                         SessionManager.SessionManagerCallback {
 
     public interface Callback {
 
-        void onDataRecevied(@NonNull AirShareService.ServiceBinder binder,
+        void onDataReceived(@NonNull AirShareService.ServiceBinder binder,
                             @Nullable byte[] data,
                             @NonNull Peer sender,
                             @Nullable Exception exception);
@@ -60,21 +61,22 @@ public class AirShareService extends Service implements ActivityRecevingMessages
 
     }
 
-    private SessionManager sessionManager;
-    private Callback callback;
-    private boolean activityRecevingMessages;
-    private BiMap<Peer, ArrayDeque<OutgoingTransfer>> outPeerTransfers = HashBiMap.create();
-    private BiMap<Peer, ArrayDeque<IncomingTransfer>> inPeerTransfers = HashBiMap.create();
-    private Set<IncomingMessageListener> incomingMessageListeners = new HashSet<>();
-    private Set<MessageDeliveryListener> messageDeliveryListeners = new HashSet<>();
+    private SessionManager mSessionManager;
+    private Callback mCallback;
+    private boolean mActivityRecevingMessages;
+    private BiMap<Peer, ArrayDeque<OutgoingTransfer>> mOutPeerTransfers = HashBiMap.create();
+    private BiMap<Peer, ArrayDeque<IncomingTransfer>> mInPeerTransfers = HashBiMap.create();
+    private Set<IncomingMessageListener> mIncomingMessageListeners = new HashSet<>();
+    private Set<MessageDeliveryListener> mMessageDeliveryListeners = new HashSet<>();
 
-    private ServiceBinder binder;
+    private ServiceBinder mBinder;
 
-    private Looper backgroundLooper;
-    private BackgroundThreadHandler backgroundHandler;
-    private Handler foregroundHandler;
+    private Looper mBackgroundLooper;
+    @SuppressWarnings("FieldCanBeLocal")
+    private BackgroundThreadHandler mBackgroundHandler;
+    private Handler mForegroundHandler;
 
-    private LocalPeer localPeer;
+    private LocalPeer mLocalPeer;
 
     /** Handler Messages */
     public static final int ADVERTISE     = 0;
@@ -93,23 +95,23 @@ public class AirShareService extends Service implements ActivityRecevingMessages
         thread.start();
 
         // Get the HandlerThread's Looper and use it for our Handler
-        backgroundLooper = thread.getLooper();
-        backgroundHandler = new BackgroundThreadHandler(backgroundLooper);
-        foregroundHandler = new Handler(Looper.getMainLooper());
+        mBackgroundLooper = thread.getLooper();
+        mBackgroundHandler = new BackgroundThreadHandler(mBackgroundLooper);
+        mForegroundHandler = new Handler(Looper.getMainLooper());
     }
 
     @Override
     public void onDestroy() {
         Timber.d("Service destroyed");
-        sessionManager.stop();
-        backgroundLooper.quit();
+        if (mSessionManager != null) mSessionManager.stop();
+        mBackgroundLooper.quit();
     }
 
     @Override
     public IBinder onBind(Intent intent) {
-        if (binder == null) binder = new ServiceBinder();
+        if (mBinder == null) mBinder = new ServiceBinder();
         Timber.d("Bind service");
-        return binder;
+        return mBinder;
     }
 
     @Override
@@ -120,43 +122,44 @@ public class AirShareService extends Service implements ActivityRecevingMessages
     /** ActivityReceivingMessagesIndicator */
     @Override
     public boolean isActivityReceivingMessages() {
-        return activityRecevingMessages;
+        return mActivityRecevingMessages;
     }
 
     /** Binder through which Activities can interact with this Service */
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public class ServiceBinder extends Binder {
 
         public void registerLocalUserWithService(String userAlias, String serviceName) {
             KeyPair keyPair = SodiumShaker.generateKeyPair();
-            localPeer = new LocalPeer(getApplicationContext(), keyPair, userAlias);
+            mLocalPeer = new LocalPeer(getApplicationContext(), keyPair, userAlias);
 
-            if (sessionManager != null) sessionManager.stop();
+            if (mSessionManager != null) mSessionManager.stop();
 
-            sessionManager = new SessionManager(AirShareService.this, serviceName, localPeer, AirShareService.this);
+            mSessionManager = new SessionManager(AirShareService.this, serviceName, mLocalPeer, AirShareService.this);
         }
 
         public LocalPeer getLocalPeer() {
-            return localPeer;
+            return mLocalPeer;
         }
 
         public void advertiseLocalUser() {
-            sessionManager.advertiseLocalPeer();
+            if (mSessionManager != null) mSessionManager.advertiseLocalPeer();
         }
 
         public void scanForOtherUsers() {
-            sessionManager.scanForPeers();
+            if (mSessionManager != null) mSessionManager.scanForPeers();
         }
 
         public void stop() {
-            sessionManager.stop();
+            if (mSessionManager != null) mSessionManager.stop();
         }
 
         public void setCallback(Callback callback) {
-            AirShareService.this.callback = callback;
+            AirShareService.this.mCallback = callback;
         }
 
         public void send(byte[] data, Peer recipient) {
-            addOutgoingTransfer(new OutgoingTransfer(data, recipient, sessionManager));
+            addOutgoingTransfer(new OutgoingTransfer(data, recipient, mSessionManager));
         }
 
         /**
@@ -186,7 +189,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          * and should be downgraded as soon as possible via {@link #downgradeTransport()}
          */
         public void requestTransportUpgrade(Peer remotePeer) {
-            sessionManager.requestTransportUpgrade(remotePeer);
+            if (mSessionManager != null) mSessionManager.requestTransportUpgrade(remotePeer);
         }
 
         /**
@@ -194,7 +197,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          * Currently this is {@link pro.dbro.airshare.transport.ble.BLETransport}
          */
         public void downgradeTransport() {
-            sessionManager.downgradeTransport();
+            if (mSessionManager != null) mSessionManager.downgradeTransport();
         }
 
         /** Get the current preferred available transport for the given peer
@@ -205,7 +208,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          *                 or -1 if none available.
          */
         public int getTransportCodeForPeer(Peer remotePeer) {
-            return sessionManager.getTransportCodeForPeer(remotePeer);
+            return mSessionManager != null ? mSessionManager.getTransportCodeForPeer(remotePeer) : -1;
         }
 
         /**
@@ -218,46 +221,49 @@ public class AirShareService extends Service implements ActivityRecevingMessages
          * to avoid manually keeping track of such state themselves.
          */
         public void setActivityReceivingMessages(boolean receivingMessages) {
-            activityRecevingMessages = receivingMessages;
+            mActivityRecevingMessages = receivingMessages;
         }
 
         public boolean isActivityReceivingMessages() {
-            return activityRecevingMessages;
+            return mActivityRecevingMessages;
         }
     }
 
     private void addIncomingTransfer(IncomingTransfer transfer) {
         Peer recipient = transfer.getSender();
 
-        incomingMessageListeners.add(transfer);
-        messageDeliveryListeners.add(transfer);
+        mIncomingMessageListeners.add(transfer);
+        mMessageDeliveryListeners.add(transfer);
 
-        if (!inPeerTransfers.containsKey(recipient))
-            inPeerTransfers.put(recipient, new ArrayDeque<IncomingTransfer>());
+        if (!mInPeerTransfers.containsKey(recipient))
+            mInPeerTransfers.put(recipient, new ArrayDeque<IncomingTransfer>());
 
-        inPeerTransfers.get(recipient).add(transfer);
+        ArrayDeque<IncomingTransfer> queue = mInPeerTransfers.get(recipient);
+        if (queue != null) queue.add(transfer);
     }
 
     private void addOutgoingTransfer(OutgoingTransfer transfer) {
         Peer recipient = transfer.getRecipient();
 
-        incomingMessageListeners.add(transfer);
-        messageDeliveryListeners.add(transfer);
+        mIncomingMessageListeners.add(transfer);
+        mMessageDeliveryListeners.add(transfer);
 
-        if (!outPeerTransfers.containsKey(recipient))
-            outPeerTransfers.put(recipient, new ArrayDeque<OutgoingTransfer>());
+        if (!mOutPeerTransfers.containsKey(recipient))
+            mOutPeerTransfers.put(recipient, new ArrayDeque<OutgoingTransfer>());
 
-        outPeerTransfers.get(recipient).add(transfer);
+        ArrayDeque<OutgoingTransfer> queue = mOutPeerTransfers.get(recipient);
+        if (queue != null) queue.add(transfer);
     }
 
     /** Handler that processes Messages on a background thread */
-    private final class BackgroundThreadHandler extends Handler {
+    @SuppressWarnings("WeakerAccess")
+    private static final class BackgroundThreadHandler extends Handler {
         public BackgroundThreadHandler(Looper looper) {
             super(looper);
         }
 
         @Override
-        public void handleMessage(Message msg) {
+        public void handleMessage(@NonNull Message msg) {
 //            switch (msg.what) {
 //                case ADVERTISE:
 //                    Log.i(TAG, "handling connect");
@@ -282,13 +288,21 @@ public class AirShareService extends Service implements ActivityRecevingMessages
                                                                                  Peer sender) {
 
         IncomingTransfer incomingTransfer = null;
-        for (IncomingTransfer transfer : inPeerTransfers.get(sender)) {
-            if (transferMessage instanceof DataTransferMessage) {
-                // If we only target API 19+, we can move to the java.util.Objects.equals
-                if (Objects.equal(transfer.getTransferId(), transferMessage.getHeaders().get(SessionMessage.HEADER_ID)))
-                    incomingTransfer = transfer;
-            } else
-                throw new IllegalStateException("Only DataTransferMessage is supported!");
+
+        ArrayDeque<IncomingTransfer> queue = mInPeerTransfers.get(sender);
+
+        if (queue != null) {
+            for (IncomingTransfer transfer : queue) {
+                if (transferMessage instanceof DataTransferMessage) {
+                    // If we only target API 19+, we can move to the java.util.Objects.equals
+                    if (Objects.equal(transfer.getTransferId(), transferMessage.getHeaders().get(SessionMessage.HEADER_ID))) {
+                        incomingTransfer = transfer;
+                    }
+                }
+                else {
+                    throw new IllegalStateException("Only DataTransferMessage is supported!");
+                }
+            }
         }
 
         return incomingTransfer;
@@ -298,28 +312,35 @@ public class AirShareService extends Service implements ActivityRecevingMessages
                                                                                  Peer recipient) {
 
         OutgoingTransfer outgoingTransfer = null;
-        for (OutgoingTransfer transfer : outPeerTransfers.get(recipient)) {
-            if (transferMessage instanceof DataTransferMessage) {
-                // If we only target API 19+, we can move to the java.util.Objects.equals
-                if (Objects.equal(transfer.getTransferId(), transferMessage.getHeaders().get(SessionMessage.HEADER_ID)))
-                    outgoingTransfer = transfer;
-            } else
-                throw new IllegalStateException("Only DataTransferMessage is supported!");
-        }
 
+        ArrayDeque<OutgoingTransfer> queue = mOutPeerTransfers.get(recipient);
+
+        if (queue != null) {
+            for (OutgoingTransfer transfer : queue) {
+                if (transferMessage instanceof DataTransferMessage) {
+                    // If we only target API 19+, we can move to the java.util.Objects.equals
+                    if (Objects.equal(transfer.getTransferId(), transferMessage.getHeaders().get(SessionMessage.HEADER_ID))) {
+                        outgoingTransfer = transfer;
+                    }
+                }
+                else {
+                    throw new IllegalStateException("Only DataTransferMessage is supported!");
+                }
+            }
+        }
         return outgoingTransfer;
     }
 
     // <editor-fold desc="SessionManagerCallback">
 
     @Override
-    public void peerStatusUpdated(final Peer peer, final Transport.ConnectionStatus newStatus, final boolean isHost) {
+    public void peerStatusUpdated(@NonNull final Peer peer, @NonNull final Transport.ConnectionStatus newStatus, final boolean isHost) {
 
-        foregroundHandler.post(new Runnable() {
+        mForegroundHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (callback != null)
-                    callback.onPeerStatusUpdated(binder, peer, newStatus, isHost);
+                if (mCallback != null)
+                    mCallback.onPeerStatusUpdated(mBinder, peer, newStatus, isHost);
                 else
                     Timber.w("Could not report peer status update, no callback registered");
             }
@@ -335,7 +356,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
     @Override
     public void messageReceivedFromPeer(@NonNull SessionMessage message, @NonNull final Peer sender) {
         Timber.d("Got %s message from %s", message.getType(), sender.getAlias());
-        Iterator<IncomingMessageListener> iterator = incomingMessageListeners.iterator();
+        Iterator<IncomingMessageListener> iterator = mIncomingMessageListeners.iterator();
         IncomingMessageListener listener;
 
         while (iterator.hasNext()) {
@@ -351,11 +372,11 @@ public class AirShareService extends Service implements ActivityRecevingMessages
 
             incomingTransfer = new IncomingTransfer((DataTransferMessage) message, sender);
             // No action is required for DataTransferMessage. Report complete
-            foregroundHandler.post(new Runnable() {
+            mForegroundHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    if (callback != null)
-                        callback.onDataRecevied(binder, incomingTransfer.getBodyBytes(), sender, null);
+                    if (mCallback != null)
+                        mCallback.onDataReceived(mBinder, incomingTransfer.getBodyBytes(), sender, null);
                 }
             });
         }
@@ -369,7 +390,7 @@ public class AirShareService extends Service implements ActivityRecevingMessages
     @Override
     public void messageSentToPeer(@NonNull SessionMessage message, @NonNull final Peer recipient, Exception exception) {
         Timber.d("Sent %s to %s", message.getType(), recipient.getAlias());
-        Iterator<MessageDeliveryListener> iterator = messageDeliveryListeners.iterator();
+        Iterator<MessageDeliveryListener> iterator = mMessageDeliveryListeners.iterator();
         MessageDeliveryListener listener;
 
         while (iterator.hasNext()) {
@@ -383,10 +404,12 @@ public class AirShareService extends Service implements ActivityRecevingMessages
         if (message.getType().equals(DataTransferMessage.HEADER_TYPE)) {
             outgoingTransfer = getOutgoingTransferForFileTransferMessage(message, recipient);
             // No action is required for DataTransferMessage. Report complete
-            foregroundHandler.post(new Runnable() {
+            mForegroundHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    if (callback != null) callback.onDataSent(binder, outgoingTransfer.getBodyBytes(), recipient, null);
+                    if (mCallback != null && outgoingTransfer != null) {
+                        mCallback.onDataSent(mBinder, outgoingTransfer.getBodyBytes(), recipient, null);
+                    }
                 }
             });
         }
@@ -394,10 +417,10 @@ public class AirShareService extends Service implements ActivityRecevingMessages
 
     @Override
     public void peerTransportUpdated(@NonNull final Peer peer, final int newTransportCode, @Nullable final Exception exception) {
-        foregroundHandler.post(new Runnable() {
+        mForegroundHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (callback != null) callback.onPeerTransportUpdated(binder, peer, newTransportCode, exception);
+                if (mCallback != null) mCallback.onPeerTransportUpdated(mBinder, peer, newTransportCode, exception);
             }
         });
     }

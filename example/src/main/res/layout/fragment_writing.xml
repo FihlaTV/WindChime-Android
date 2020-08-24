@@ -2,16 +2,17 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="pro.dbro.airshare.sample.ui.fragment.QuoteWritingFragment">
-
+    tools:context=".ui.fragment.QuoteWritingFragment">
 
     <EditText
         android:id="@+id/quote_entry"
         android:layout_width="280dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="64dp"
         android:layout_centerHorizontal="true"
+        android:layout_marginTop="64dp"
+        android:autofillHints=""
         android:gravity="center"
+        android:inputType="textMultiLine|textLongMessage"
         android:text="@string/quote_placeholder"
         android:textSize="22sp" />
 
@@ -38,7 +39,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:singleLine="true"
-        android:text="@string/author_placeholder"/>
+        android:text="@string/author_placeholder"
+        android:autofillHints=""
+        android:inputType="textPersonName" />
 
     <ImageView
         android:layout_width="25dp"

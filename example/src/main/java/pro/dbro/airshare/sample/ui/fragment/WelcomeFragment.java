@@ -1,8 +1,10 @@
 package pro.dbro.airshare.sample.ui.fragment;
 
-import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,9 +17,7 @@ import pro.dbro.airshare.sample.R;
 
 public class WelcomeFragment extends Fragment {
 
-    private WelcomeFragmentListener listener;
-
-    private EditText username;
+    private WelcomeFragmentListener mListener;
 
     public WelcomeFragment() {
         // Required empty public constructor
@@ -29,12 +29,12 @@ public class WelcomeFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View root = inflater.inflate(R.layout.fragment_welcome, container, false);
-        EditText entry = (EditText) root.findViewById(R.id.quote_entry);
+        EditText entry = root.findViewById(R.id.quote_entry);
         entry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    listener.onUsernameSelected(v.getText().toString());
+                    mListener.onUsernameSelected(v.getText().toString());
                 }
                 return false;
             }
@@ -43,12 +43,13 @@ public class WelcomeFragment extends Fragment {
     }
 
     @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+
         try {
-            listener = (WelcomeFragmentListener) activity;
+            mListener = (WelcomeFragmentListener) context;
         } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
+            throw new ClassCastException(context.toString()
                     + " must implement WelcomeFragmentListener");
         }
     }
@@ -56,11 +57,10 @@ public class WelcomeFragment extends Fragment {
     @Override
     public void onDetach() {
         super.onDetach();
-        listener = null;
+        mListener = null;
     }
 
     public interface WelcomeFragmentListener {
-        public void onUsernameSelected(String username);
+        void onUsernameSelected(String username);
     }
-
 }

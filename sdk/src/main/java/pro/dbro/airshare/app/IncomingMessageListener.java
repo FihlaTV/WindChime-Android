@@ -17,6 +17,5 @@ public interface IncomingMessageListener {
      * the interceptor will not receive further events.
      *
      */
-    public boolean onMessageReceived(SessionMessage message, Peer recipient);
-
+    boolean onMessageReceived(SessionMessage message, Peer recipient);
 }

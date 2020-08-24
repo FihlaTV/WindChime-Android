@@ -4,7 +4,7 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.content.Context;
 import android.os.Build;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -22,14 +22,13 @@ import timber.log.Timber;
 /**
  * Bluetooth Low Energy Transport. Requires Android 5.0.
  *
- * Note that only the Central device reports device connection events to {@link #callback}
+ * Note that only the Central device reports device connection events to {@link #mCallback}
  * in this implementation.
  * See {@link #identifierUpdated(pro.dbro.airshare.transport.ble.BLETransportCallback.DeviceType, String, pro.dbro.airshare.transport.Transport.ConnectionStatus, java.util.Map)}
  *
  * Created by davidbrodsky on 2/21/15.
- */
-
-/**
+ *
+ *
  * Every Identifier gets a ByteBuffer that all outgoing data gets copied to, and
  * is read from in DEFAULT_MTU_BYTES increments for the actual sendData call.
  *
@@ -51,14 +50,14 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
     public static final int TRANSPORT_CODE = 1;
 
-    private final UUID serviceUUID;
-    private final UUID dataUUID    = UUID.fromString("72A7700C-859D-4317-9E35-D7F5A93005B1");
+    private final UUID mServiceUuid;
+    private final UUID mDataUuid = UUID.fromString("72A7700C-859D-4317-9E35-D7F5A93005B1");
 
     /** Identifier -> Queue of outgoing buffers */
-    private HashMap<String, ArrayDeque<byte[]>> outBuffers = new HashMap<>();
+    private HashMap<String, ArrayDeque<byte[]>> mOutBuffers = new HashMap<>();
 
-    private final BluetoothGattCharacteristic dataCharacteristic
-            = new BluetoothGattCharacteristic(dataUUID,
+    private final BluetoothGattCharacteristic mDataCharacteristic
+            = new BluetoothGattCharacteristic(mDataUuid,
                                               BluetoothGattCharacteristic.PROPERTY_READ |
                                               BluetoothGattCharacteristic.PROPERTY_WRITE |
                                               BluetoothGattCharacteristic.PROPERTY_INDICATE,
@@ -66,8 +65,8 @@ public class BLETransport extends Transport implements BLETransportCallback {
                                               BluetoothGattCharacteristic.PERMISSION_READ |
                                               BluetoothGattCharacteristic.PERMISSION_WRITE);
 
-    private BLECentral    central;
-    private BLEPeripheral peripheral;
+    private BLECentral mCentral;
+    private BLEPeripheral mPeripheral;
 
     public BLETransport(@NonNull Context context,
                         @NonNull String serviceName,
@@ -75,20 +74,20 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
         super(serviceName, callback);
 
-        serviceUUID = generateUUIDFromString(serviceName);
+        mServiceUuid = generateUUIDFromString(serviceName);
 
-        dataCharacteristic.addDescriptor(new BluetoothGattDescriptor(BLECentral.CLIENT_CHARACTERISTIC_CONFIG,
+        mDataCharacteristic.addDescriptor(new BluetoothGattDescriptor(BLECentral.CLIENT_CHARACTERISTIC_CONFIG,
                                                                      BluetoothGattDescriptor.PERMISSION_WRITE |
                                                                              BluetoothGattDescriptor.PERMISSION_READ));
 
-        central = new BLECentral(context, serviceUUID);
-        central.setTransportCallback(this);
-        central.requestNotifyOnCharacteristic(dataCharacteristic);
+        mCentral = new BLECentral(context, mServiceUuid);
+        mCentral.setTransportCallback(this);
+        mCentral.requestNotifyOnCharacteristic(mDataCharacteristic);
 
         if (isLollipop()) {
-            peripheral = new BLEPeripheral(context, serviceUUID);
-            peripheral.setTransportCallback(this);
-            peripheral.addCharacteristic(dataCharacteristic);
+            mPeripheral = new BLEPeripheral(context, mServiceUuid);
+            mPeripheral.setTransportCallback(this);
+            mPeripheral.addCharacteristic(mDataCharacteristic);
         }
     }
 
@@ -138,18 +137,18 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
     @Override
     public void advertise() {
-        if (isLollipop() && !peripheral.isAdvertising()) peripheral.start();
+        if (isLollipop() && !mPeripheral.isAdvertising()) mPeripheral.start();
     }
 
     @Override
     public void scanForPeers() {
-        if (!central.isScanning()) central.start();
+        if (!mCentral.isScanning()) mCentral.start();
     }
 
     @Override
     public void stop() {
-        if (isLollipop() && peripheral.isAdvertising()) peripheral.stop();
-        if (central.isScanning())       central.stop();
+        if (isLollipop() && mPeripheral.isAdvertising()) mPeripheral.stop();
+        if (mCentral.isScanning())       mCentral.stop();
     }
 
     @Override
@@ -159,7 +158,7 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
     @Override
     public int getMtuForIdentifier(String identifier) {
-        Integer mtu = central.getMtuForIdentifier(identifier);
+        Integer mtu = mCentral.getMtuForIdentifier(identifier);
         return (mtu == null ? DEFAULT_MTU_BYTES : mtu ) - 10;
     }
 
@@ -169,16 +168,16 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
     @Override
     public void dataReceivedFromIdentifier(DeviceType deviceType, byte[] data, String identifier) {
-        if (callback.get() != null)
-            callback.get().dataReceivedFromIdentifier(this, data, identifier);
+        if (mCallback.get() != null)
+            mCallback.get().dataReceivedFromIdentifier(this, data, identifier);
     }
 
     @Override
     public void dataSentToIdentifier(DeviceType deviceType, byte[] data, String identifier, Exception exception) {
         Timber.d("Got receipt for %d sent bytes", data.length);
 
-        if (callback.get() != null)
-            callback.get().dataSentToIdentifier(this, data, identifier, exception);
+        if (mCallback.get() != null)
+            mCallback.get().dataSentToIdentifier(this, data, identifier, exception);
     }
 
     @Override
@@ -188,9 +187,9 @@ public class BLETransport extends Transport implements BLETransportCallback {
                                   Map<String, Object> extraInfo) {
 
         Timber.d("%s status: %s", identifier, status.toString());
-        if (callback.get() != null) {
+        if (mCallback.get() != null) {
 
-                callback.get().identifierUpdated(this,
+                mCallback.get().identifierUpdated(this,
                                                  identifier,
                                                  status,
                                                  deviceType == DeviceType.CENTRAL,  // If the central reported connection, the remote peer is the host
@@ -207,8 +206,11 @@ public class BLETransport extends Transport implements BLETransportCallback {
      * Queue data for transmission to identifier
      */
     private void queueOutgoingData(byte[] data, String identifier) {
-        if (!outBuffers.containsKey(identifier)) {
-            outBuffers.put(identifier, new ArrayDeque<byte[]>());
+        ArrayDeque<byte[]> buffers = mOutBuffers.get(identifier);
+
+        if (buffers == null) {
+            buffers = new ArrayDeque<>();
+            mOutBuffers.put(identifier, buffers);
         }
 
         int mtu = getMtuForIdentifier(identifier);
@@ -220,11 +222,11 @@ public class BLETransport extends Transport implements BLETransportCallback {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream(mtu);
                 bos.write(data, readIdx, mtu);
                 Timber.d("Adding %d byte chunk to queue", bos.size());
-                outBuffers.get(identifier).add(bos.toByteArray());
+                buffers.add(bos.toByteArray());
                 readIdx += mtu;
             } else {
                 Timber.d("Adding %d byte chunk to queue", data.length);
-                outBuffers.get(identifier).add(data);
+                buffers.add(data);
                 break;
             }
         }
@@ -232,35 +234,44 @@ public class BLETransport extends Transport implements BLETransportCallback {
 
     // TODO: Don't think the boolean return type is meaningful here as partial success can't be handled
     private boolean transmitOutgoingDataForConnectedPeer(String identifier) {
-        if (!outBuffers.containsKey(identifier)) return false;
+        ArrayDeque<byte[]> buffer = mOutBuffers.get(identifier);
+
+        if (buffer == null) {
+            return false;
+        }
 
         byte[] toSend;
         boolean didSendAll = true;
-        while ((toSend = outBuffers.get(identifier).peek()) != null) {
+
+        while ((toSend = buffer.peek()) != null) {
             boolean didSend = false;
-            if (central.isConnectedTo(identifier)) {
-                didSend = central.write(toSend, dataCharacteristic.getUuid(), identifier);
+            if (mCentral.isConnectedTo(identifier)) {
+                didSend = mCentral.write(toSend, mDataCharacteristic.getUuid(), identifier);
             }
-            else if (isLollipop() && peripheral.isConnectedTo(identifier)) {
-                didSend = peripheral.indicate(toSend, dataCharacteristic.getUuid(), identifier);
+            else if (isLollipop() && mPeripheral.isConnectedTo(identifier)) {
+                didSend = mPeripheral.indicate(toSend, mDataCharacteristic.getUuid(), identifier);
             }
 
             if (didSend) {
-                Timber.d("Sent %d byte chunk to %s. %d more chunks in queue", toSend.length, identifier, outBuffers.get(identifier).size() - 1);
+                Timber.d("Sent %d byte chunk to %s. %d more chunks in queue", toSend.length, identifier, buffer.size() - 1);
 
-                outBuffers.get(identifier).poll();
-            } else {
+                buffer.poll();
+            }
+            else {
                 Timber.w("Failed to send %d bytes to %s", toSend.length, identifier);
                 didSendAll = false;
+
                 break;
             }
+
             break; // For now, only attempt one data chunk at a time. Wait delivery before proceeding
         }
+
         return didSendAll;
     }
 
     private boolean isConnectedTo(String identifier) {
-        return central.isConnectedTo(identifier) || (isLollipop() && peripheral.isConnectedTo(identifier));
+        return mCentral.isConnectedTo(identifier) || (isLollipop() && mPeripheral.isConnectedTo(identifier));
     }
 
     private static boolean isLollipop() {

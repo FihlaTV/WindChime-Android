@@ -5,6 +5,7 @@ import timber.log.Timber;
 /**
  * Created by davidbrodsky on 2/21/15.
  */
+@SuppressWarnings("unused")
 public class Logging {
 
     private static boolean isLogging = false;

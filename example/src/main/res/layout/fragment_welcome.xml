@@ -34,7 +34,9 @@
         android:gravity="center"
         android:maxLength="@integer/max_alias_length"
         android:singleLine="true"
-        android:textSize="22sp" />
+        android:textSize="22sp"
+        android:autofillHints=""
+        android:inputType="textPersonName" />
 
 
 </RelativeLayout>

@@ -8,6 +8,7 @@ import java.util.Locale;
  *
  * Created by davidbrodsky on 10/13/14.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class DataUtil {
 
     public static SimpleDateFormat storedDateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
@@ -27,8 +28,7 @@ public class DataUtil {
             hexChars[j * 2] = hexArray[v >>> 4];
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
-        String rawHex = new String(hexChars);
-        return rawHex;
+        return new String(hexChars);
 //        String blobLiteral = "X'" + rawHex + "'";
 //        return blobLiteral;
     }
@@ -42,5 +42,4 @@ public class DataUtil {
         }
         return data;
     }
-
 }

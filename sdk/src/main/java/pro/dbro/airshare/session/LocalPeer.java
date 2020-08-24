@@ -2,7 +2,6 @@ package pro.dbro.airshare.session;
 
 import android.content.Context;
 import android.content.pm.FeatureInfo;
-import android.content.pm.PackageManager;
 
 import pro.dbro.airshare.crypto.KeyPair;
 import pro.dbro.airshare.transport.wifi.WifiTransport;
@@ -11,6 +10,7 @@ import timber.log.Timber;
 /**
  * Created by davidbrodsky on 2/21/15.
  */
+@SuppressWarnings("WeakerAccess")
 public class LocalPeer extends Peer {
 
     byte[] privateKey;
@@ -20,23 +20,23 @@ public class LocalPeer extends Peer {
                      String alias) {
 
         super(keyPair.publicKey, alias, null, 0, 0);
-        this.privateKey = keyPair.secretKey;
-        transports = doesDeviceSupportWifiDirect(context) ?
-                        transports | WifiTransport.TRANSPORT_CODE :
-                        transports;
+        privateKey = keyPair.secretKey;
+        mTransports = doesDeviceSupportWifiDirect(context) ?
+                        mTransports | WifiTransport.TRANSPORT_CODE :
+                mTransports;
 
         Timber.d("LocalPeer supports WifiDirect %b %b", doesDeviceSupportWifiDirect(context), supportsTransportWithCode(WifiTransport.TRANSPORT_CODE));
-
     }
 
     private static boolean doesDeviceSupportWifiDirect(Context ctx) {
-        PackageManager pm = ctx.getPackageManager();
-        FeatureInfo[] features = pm.getSystemAvailableFeatures();
+        FeatureInfo[] features = ctx.getPackageManager().getSystemAvailableFeatures();
+
         for (FeatureInfo info : features) {
             if (info != null && info.name != null && info.name.equalsIgnoreCase("android.hardware.wifi.direct")) {
                 return true;
             }
         }
+
         return false;
     }
 }
